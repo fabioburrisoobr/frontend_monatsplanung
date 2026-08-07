@@ -1,13 +1,13 @@
 'use client'
 
-import React, { useState, useMemo, useEffect, Fragment } from 'react'
+import React, { useState, useMemo, Fragment } from 'react'
 import {
   AlertTriangle, Layers, User, HelpCircle, Menu,
   Search, ChevronDown, ChevronRight, Edit3, MoreHorizontal,
   CornerDownRight, RefreshCw, CheckCircle2, X, Upload,
   Play, LayoutGrid, CalendarDays, ClipboardList,
   Building2, BarChart3, Settings, Calendar, ArrowRight,
-  MoveRight, Check, FileSpreadsheet, RotateCcw, Filter, Info
+  MoveRight, Check, FileSpreadsheet, RotateCcw, Filter, Info, ExternalLink
 } from 'lucide-react'
 
 // --- UTILS ---
@@ -28,6 +28,13 @@ function formatDayLabel(dateStr: string): string {
 export type PlanningStatus = 'auto' | 'planned' | 'override'
 export type MissedHandling = 'jump' | 'replan'
 
+export interface CategoryOccurrence {
+  id: string
+  label: string
+  date: string
+  overridden: boolean
+}
+
 export interface AreaCategory {
   key: string
   name: string
@@ -35,6 +42,7 @@ export interface AreaCategory {
   date: string | null
   status: PlanningStatus
   overridden: boolean
+  occurrences: CategoryOccurrence[]
 }
 
 export interface Area {
@@ -73,15 +81,40 @@ const INITIAL_GROUPS: AreaGroup[] = [
         stockwerk: '1. OG',
         flaechentyp: 'Büro',
         frequencies: [{ label: '@1xM', highest: true }, { label: '@1xJ' }],
-        firstExecutionDay: '01.07.2026',
+        firstExecutionDay: '01.01.2026',
         missedHandling: 'jump',
-        nextFixed: '01.07.2026',
+        nextFixed: '01.06.2026',
         manualMods: 1,
         categories: [
-          { key: 'grund', name: 'Grundreinigung', frequency: '1xJ', date: '01.01.2026', status: 'planned', overridden: false },
-          { key: 'zwischen', name: 'Zwischenreinigung', frequency: '4xJ', date: '01.07.2026', status: 'auto', overridden: false },
-          { key: 'maschinell', name: 'maschinelle Reinigung', frequency: '1xM', date: '01.06.2026', status: 'auto', overridden: false },
-          { key: 'desinf', name: 'Desinfektion', frequency: '1xM', date: '05.06.2026', status: 'override', overridden: true },
+          {
+            key: 'grund', name: 'Grundreinigung', frequency: '1xJ', date: '01.01.2026', status: 'planned', overridden: false,
+            occurrences: [{ id: 'b1-g1', label: '1. Termin', date: '01.01.2026', overridden: false }]
+          },
+          {
+            key: 'zwischen', name: 'Zwischenreinigung', frequency: '4xJ', date: '01.01.2026', status: 'auto', overridden: false,
+            occurrences: [
+              { id: 'b1-z1', label: '1. Termin', date: '01.01.2026', overridden: false },
+              { id: 'b1-z2', label: '2. Termin', date: '01.04.2026', overridden: false },
+              { id: 'b1-z3', label: '3. Termin', date: '01.07.2026', overridden: false },
+              { id: 'b1-z4', label: '4. Termin', date: '01.10.2026', overridden: false },
+            ]
+          },
+          {
+            key: 'maschinell', name: 'maschinelle Reinigung', frequency: '1xM', date: '01.06.2026', status: 'auto', overridden: false,
+            occurrences: [
+              { id: 'b1-m1', label: '1. Termin', date: '01.06.2026', overridden: false },
+              { id: 'b1-m2', label: '2. Termin', date: '01.07.2026', overridden: false },
+              { id: 'b1-m3', label: '3. Termin', date: '01.08.2026', overridden: false },
+              { id: 'b1-m4', label: '4. Termin', date: '01.09.2026', overridden: false },
+            ]
+          },
+          {
+            key: 'desinf', name: 'Desinfektion', frequency: '1xM', date: '05.06.2026', status: 'override', overridden: true,
+            occurrences: [
+              { id: 'b1-d1', label: '1. Termin', date: '05.06.2026', overridden: true },
+              { id: 'b1-d2', label: '2. Termin', date: '01.07.2026', overridden: false },
+            ]
+          },
         ],
       },
       {
@@ -91,14 +124,14 @@ const INITIAL_GROUPS: AreaGroup[] = [
         stockwerk: '1. OG',
         flaechentyp: 'Büro',
         frequencies: [{ label: '@1xM', highest: true }],
-        firstExecutionDay: '01.07.2026',
+        firstExecutionDay: '01.01.2026',
         missedHandling: 'replan',
-        nextFixed: '15.07.2026',
+        nextFixed: '01.06.2026',
         manualMods: 0,
         categories: [
-          { key: 'grund', name: 'Grundreinigung', frequency: '1xJ', date: '01.01.2026', status: 'planned', overridden: false },
-          { key: 'maschinell', name: 'maschinelle Reinigung', frequency: '1xM', date: '01.06.2026', status: 'auto', overridden: false },
-          { key: 'desinf', name: 'Desinfektion', frequency: '1xM', date: '01.06.2026', status: 'auto', overridden: false },
+          { key: 'grund', name: 'Grundreinigung', frequency: '1xJ', date: '01.01.2026', status: 'planned', overridden: false, occurrences: [{ id: 'b2-g1', label: '1. Termin', date: '01.01.2026', overridden: false }] },
+          { key: 'maschinell', name: 'maschinelle Reinigung', frequency: '1xM', date: '01.06.2026', status: 'auto', overridden: false, occurrences: [{ id: 'b2-m1', label: '1. Termin', date: '01.06.2026', overridden: false }] },
+          { key: 'desinf', name: 'Desinfektion', frequency: '1xM', date: '01.06.2026', status: 'auto', overridden: false, occurrences: [{ id: 'b2-d1', label: '1. Termin', date: '01.06.2026', overridden: false }] },
         ],
       },
     ],
@@ -113,14 +146,14 @@ const INITIAL_GROUPS: AreaGroup[] = [
         stockwerk: 'EG',
         flaechentyp: 'Flur & Erschliessung',
         frequencies: [{ label: '@2xM', highest: true }, { label: '@1xM' }],
-        firstExecutionDay: '01.06.2026',
+        firstExecutionDay: '01.01.2026',
         missedHandling: 'jump',
         nextFixed: '01.06.2026',
         manualMods: 2,
         categories: [
-          { key: 'kristall', name: 'Kristallisierung', frequency: '1xJ', date: '15.03.2026', status: 'override', overridden: true },
-          { key: 'glas', name: 'Glas- & Rahmenreinigung', frequency: '2xM', date: '01.06.2026', status: 'auto', overridden: false },
-          { key: 'boden', name: 'Bodenbeschichtung', frequency: '1xM', date: '10.06.2026', status: 'override', overridden: true },
+          { key: 'kristall', name: 'Kristallisierung', frequency: '1xJ', date: '15.03.2026', status: 'override', overridden: true, occurrences: [{ id: 'f1-k1', label: '1. Termin', date: '15.03.2026', overridden: true }] },
+          { key: 'glas', name: 'Glas- & Rahmenreinigung', frequency: '2xM', date: '01.06.2026', status: 'auto', overridden: false, occurrences: [{ id: 'f1-gl1', label: '1. Termin', date: '01.06.2026', overridden: false }] },
+          { key: 'boden', name: 'Bodenbeschichtung', frequency: '1xM', date: '10.06.2026', status: 'override', overridden: true, occurrences: [{ id: 'f1-b1', label: '1. Termin', date: '10.06.2026', overridden: true }] },
         ],
       },
       {
@@ -130,13 +163,13 @@ const INITIAL_GROUPS: AreaGroup[] = [
         stockwerk: '1. OG',
         flaechentyp: 'Flur & Erschliessung',
         frequencies: [{ label: '@1xM', highest: true }],
-        firstExecutionDay: '01.06.2026',
+        firstExecutionDay: '01.01.2026',
         missedHandling: 'replan',
         nextFixed: '01.06.2026',
         manualMods: 0,
         categories: [
-          { key: 'glas', name: 'Glas- & Rahmenreinigung', frequency: '1xM', date: '01.06.2026', status: 'auto', overridden: false },
-          { key: 'unterhalt', name: 'Intensivreinigung', frequency: '4xJ', date: '01.08.2026', status: 'planned', overridden: false },
+          { key: 'glas', name: 'Glas- & Rahmenreinigung', frequency: '1xM', date: '01.06.2026', status: 'auto', overridden: false, occurrences: [{ id: 'f2-gl1', label: '1. Termin', date: '01.06.2026', overridden: false }] },
+          { key: 'unterhalt', name: 'Intensivreinigung', frequency: '4xJ', date: '01.08.2026', status: 'planned', overridden: false, occurrences: [{ id: 'f2-i1', label: '1. Termin', date: '01.08.2026', overridden: false }] },
         ],
       },
     ],
@@ -151,13 +184,13 @@ const INITIAL_GROUPS: AreaGroup[] = [
         stockwerk: 'EG',
         flaechentyp: 'Sanitärbereich',
         frequencies: [{ label: '@2xM', highest: true }],
-        firstExecutionDay: '01.06.2026',
+        firstExecutionDay: '01.01.2026',
         missedHandling: 'jump',
         nextFixed: '01.06.2026',
         manualMods: 0,
         categories: [
-          { key: 'entkalkung', name: 'Grundentkalkung', frequency: '2xM', date: '01.06.2026', status: 'auto', overridden: false },
-          { key: 'fliesen', name: 'Fliesen-Dampfreinigung', frequency: '1xM', date: '15.06.2026', status: 'planned', overridden: false },
+          { key: 'entkalkung', name: 'Grundentkalkung', frequency: '2xM', date: '01.06.2026', status: 'auto', overridden: false, occurrences: [{ id: 's1-e1', label: '1. Termin', date: '01.06.2026', overridden: false }] },
+          { key: 'fliesen', name: 'Fliesen-Dampfreinigung', frequency: '1xM', date: '15.06.2026', status: 'planned', overridden: false, occurrences: [{ id: 's1-f1', label: '1. Termin', date: '15.06.2026', overridden: false }] },
         ],
       },
       {
@@ -167,13 +200,13 @@ const INITIAL_GROUPS: AreaGroup[] = [
         stockwerk: 'EG',
         flaechentyp: 'Sanitärbereich',
         frequencies: [{ label: '@2xM', highest: true }],
-        firstExecutionDay: '01.06.2026',
+        firstExecutionDay: '01.01.2026',
         missedHandling: 'jump',
         nextFixed: '05.06.2026',
         manualMods: 1,
         categories: [
-          { key: 'entkalkung', name: 'Grundentkalkung', frequency: '2xM', date: '05.06.2026', status: 'override', overridden: true },
-          { key: 'fliesen', name: 'Fliesen-Dampfreinigung', frequency: '1xM', date: '15.06.2026', status: 'planned', overridden: false },
+          { key: 'entkalkung', name: 'Grundentkalkung', frequency: '2xM', date: '05.06.2026', status: 'override', overridden: true, occurrences: [{ id: 's2-e1', label: '1. Termin', date: '05.06.2026', overridden: true }] },
+          { key: 'fliesen', name: 'Fliesen-Dampfreinigung', frequency: '1xM', date: '15.06.2026', status: 'planned', overridden: false, occurrences: [{ id: 's2-f1', label: '1. Termin', date: '15.06.2026', overridden: false }] },
         ],
       },
     ],
@@ -342,16 +375,12 @@ function FilterBar({
 
       <button
         onClick={onToggleManualMods}
-        className={cn(
-          'inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm font-medium transition-all',
-          onlyManualMods
-            ? 'border-amber-400 bg-amber-50 text-amber-800 shadow-xs ring-2 ring-amber-200'
-            : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-        )}
+        className="inline-flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
       >
-        <AlertTriangle className={cn('h-4 w-4', onlyManualMods ? 'text-amber-600' : 'text-slate-400')} />
-        Nur manuelle Änderungen
-        {onlyManualMods && <span className="ml-0.5 rounded-full bg-amber-500 px-1.5 py-0.2 text-[10px] font-bold text-white">Aktiv</span>}
+        <div className={cn("relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out", onlyManualMods ? "bg-blue-600" : "bg-slate-300")}>
+          <span className={cn("pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out", onlyManualMods ? "translate-x-3" : "translate-x-0")} />
+        </div>
+        <span>Nur manuelle Änderungen</span>
       </button>
 
       {isFiltered && (
@@ -397,22 +426,24 @@ function RowDetail({ area, onShift }: { area: Area; onShift: (catName: string, c
   return (
     <div className="border-t border-slate-200 bg-slate-50/80 p-4">
       <div className="rounded-xl border border-slate-200 bg-white shadow-xs">
-        {/* Top bar with buttons only (no paragraph) */}
         <div className="flex flex-col gap-3 border-b border-slate-200 bg-slate-50/50 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">
             Detailkonfiguration für {area.name}
           </div>
           <div className="flex flex-wrap gap-2">
-            <button className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs hover:bg-slate-50">
-              <Settings className="h-3.5 w-3.5 text-slate-500" /> Kategorie konfigurieren
-            </button>
+            <a
+              href="#kategorie-konfiguration"
+              onClick={(e) => { e.preventDefault(); alert(`Navigiert zur Kategorie-Konfiguration für ${area.name}...`); }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-blue-600 shadow-xs hover:bg-blue-50 transition-colors"
+            >
+              Kategorie-Konfiguration <ExternalLink className="h-3.5 w-3.5" />
+            </a>
             <button className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs hover:bg-slate-50">
               <RotateCcw className="h-3.5 w-3.5 text-slate-500" /> Auf automatische Planung zurücksetzen
             </button>
           </div>
         </div>
 
-        {/* Timeframe Bar */}
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-2.5">
           <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white">
             {['3 Monate', '6 Monate', '12 Monate', '24 Monate'].map((t) => (
@@ -421,29 +452,40 @@ function RowDetail({ area, onShift }: { area: Area; onShift: (catName: string, c
               </button>
             ))}
           </div>
-          <span className="text-xs text-slate-400">{area.categories.length} Kategorien zugewiesen</span>
+          <span className="text-xs text-slate-400">Alle zukünftigen Ausführungstermine</span>
         </div>
 
-        {/* Categories Grid */}
         <div className="p-5">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-6">
             {area.categories.map((cat) => (
-              <div key={cat.key} className={cn('flex flex-col justify-between rounded-lg border p-3.5 transition-all', cat.overridden ? 'border-amber-200 bg-amber-50/30' : 'border-slate-200 bg-white hover:border-slate-300')}>
-                <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-sm font-semibold text-slate-900">{cat.name}</span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 ring-1 ring-slate-200">{cat.frequency}</span>
+              <div key={cat.key} className="rounded-lg border border-slate-200 bg-slate-50/50 p-3.5">
+                <div className="flex items-center justify-between mb-3 border-b border-slate-200/60 pb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-slate-900">{cat.name}</span>
+                    <span className="rounded-full bg-slate-200/80 px-2 py-0.5 text-xs font-medium text-slate-700">{cat.frequency}</span>
                   </div>
-                  <div className="mt-2 flex items-center gap-2">
-                    <span className="font-mono text-xs font-semibold text-slate-700">{cat.date ?? 'Nicht geplant'}</span>
-                    {cat.overridden && <OverrideBadge label="Manuell übersteuert" />}
-                  </div>
+                  {cat.overridden && <OverrideBadge label="Manuelle Übersteuerung vorliegend" />}
                 </div>
-                {cat.date && (
-                  <button onClick={() => onShift(cat.name, cat.frequency, cat.date!)} className="mt-3 inline-flex items-center justify-center gap-1.5 rounded-md border border-blue-200 bg-blue-50/50 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100/80">
-                    <MoveRight className="h-3.5 w-3.5" /> Termin verschieben
-                  </button>
-                )}
+
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {cat.occurrences.map((occ) => (
+                    <div key={occ.id} className={cn("flex flex-col justify-between rounded-lg border p-3 transition-all", occ.overridden ? "border-amber-300 bg-amber-50/60" : "border-slate-200 bg-white")}>
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-slate-500">{occ.label}</span>
+                          {occ.overridden && <AlertTriangle className="h-3 w-3 text-amber-600" />}
+                        </div>
+                        <div className="mt-1 font-mono text-xs font-bold text-slate-900">{occ.date}</div>
+                      </div>
+                      <button
+                        onClick={() => onShift(cat.name, cat.frequency, occ.date)}
+                        className="mt-3 inline-flex items-center justify-center gap-1 rounded border border-blue-200 bg-blue-50/60 py-1 text-[11px] font-semibold text-blue-700 hover:bg-blue-100"
+                      >
+                        <MoveRight className="h-3 w-3" /> Verschieben
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
@@ -464,9 +506,9 @@ function MatrixTable({
         <thead>
           <tr className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold uppercase tracking-wider text-slate-500">
             <th className="w-10 px-3 py-3" />
-            <th className="min-w-[220px] px-3 py-3">Fläche &amp; Standort</th>
+            <th className="min-w-[220px] px-3 py-3">Flächen</th>
             <th className="px-3 py-3">Erster Ausführungstag</th>
-            <th className="px-3 py-3">Umgang mit nicht ausgeführt</th>
+            <th className="px-3 py-3">Logik bei Ausfall</th>
             <th className="px-3 py-3">Nächste fixe Reinigung</th>
             <th className="px-3 py-3 min-w-[320px]">Geplante Kategorien &amp; Termine</th>
             <th className="px-3 py-3 text-right">Aktionen</th>
@@ -572,31 +614,28 @@ function MatrixTable({
   )
 }
 
-// --- DATE VIEW (STRUCTURED LIKE SCREENSHOT image_a90a50.png) ---
+// --- DATE VIEW ---
 function DateView({ groups, onMoveEntry }: { groups: AreaGroup[]; onMoveEntry: (area: Area, catName: string, catFreq: string, date: string) => void }) {
-  // Flatten all category dates and group chronologically by Month (e.g. "06.2026")
   const groupedByMonth = useMemo(() => {
-    const flatList: { area: Area; category: AreaCategory; monthKey: string }[] = []
+    const flatList: { area: Area; category: AreaCategory; monthKey: string; date: string }[] = []
 
     groups.forEach((g) => {
       g.areas.forEach((a) => {
         a.categories.forEach((c) => {
-          if (c.date) {
-            const parts = c.date.split('.')
+          c.occurrences.forEach((occ) => {
+            const parts = occ.date.split('.')
             const monthKey = parts.length === 3 ? `${parts[1]}.${parts[2]}` : 'Unbekannt'
-            flatList.push({ area: a, category: c, monthKey })
-          }
+            flatList.push({ area: a, category: c, monthKey, date: occ.date })
+          })
         })
       })
     })
 
-    // Sort by date chronologically
     flatList.sort((a, b) => {
       const parse = (d: string) => d.split('.').reverse().join('-')
-      return parse(a.category.date!).localeCompare(parse(b.category.date!))
+      return parse(a.date).localeCompare(parse(b.date))
     })
 
-    // Grouping
     const res: { monthKey: string; items: typeof flatList }[] = []
     flatList.forEach((item) => {
       let g = res.find((x) => x.monthKey === item.monthKey)
@@ -619,7 +658,6 @@ function DateView({ groups, onMoveEntry }: { groups: AreaGroup[]; onMoveEntry: (
       <div className="space-y-8">
         {groupedByMonth.map((group) => (
           <div key={group.monthKey} className="space-y-3">
-            {/* MONTH DIVIDER HEADER LIKE SCREENSHOT image_a90a50.png */}
             <div className="flex items-center gap-3">
               <span className="text-sm font-bold text-slate-900">{group.monthKey}</span>
               <span className="rounded-full bg-slate-200/70 px-2.5 py-0.5 text-xs font-medium text-slate-600">
@@ -628,13 +666,12 @@ function DateView({ groups, onMoveEntry }: { groups: AreaGroup[]; onMoveEntry: (
               <div className="h-px flex-1 bg-slate-200/80" />
             </div>
 
-            {/* CARDS LIST MATCHING SCREENSHOT image_a90a50.png */}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {group.items.map(({ area, category }, idx) => (
+              {group.items.map(({ area, category, date }, idx) => (
                 <div key={idx} className="flex flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs hover:border-slate-300">
                   <div>
                     <div className="text-sm font-bold text-slate-900">
-                      {formatDayLabel(category.date!)}
+                      {formatDayLabel(date)}
                     </div>
                     <div className="mt-0.5 text-xs text-slate-500">
                       {area.name} · {area.flaechentyp}
@@ -651,7 +688,7 @@ function DateView({ groups, onMoveEntry }: { groups: AreaGroup[]; onMoveEntry: (
                   </div>
 
                   <button
-                    onClick={() => onMoveEntry(area, category.name, category.frequency, category.date!)}
+                    onClick={() => onMoveEntry(area, category.name, category.frequency, date)}
                     className="mt-4 w-full rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
                   >
                     Verschieben
@@ -922,7 +959,13 @@ export default function FacilityApp() {
           const next = { ...area, manualMods: area.manualMods + 1 }
           next.categories = area.categories.map((c) => {
             if (c.name === shiftContext.categoryName) {
-              return { ...c, date: newDate, status: 'override', overridden: true }
+              const updatedOccurrences = c.occurrences.map((occ) => {
+                if (occ.date === shiftContext.currentDate) {
+                  return { ...occ, date: newDate, overridden: true }
+                }
+                return occ
+              })
+              return { ...c, date: newDate, status: 'override', overridden: true, occurrences: updatedOccurrences }
             }
             return c
           })
