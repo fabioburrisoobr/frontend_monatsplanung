@@ -3,11 +3,12 @@
 import React, { useState, useMemo, Fragment } from 'react'
 import {
   AlertTriangle, Layers, User, HelpCircle, Menu,
-  Search, ChevronDown, ChevronRight, Edit3, MoreHorizontal,
-  CornerDownRight, RefreshCw, CheckCircle2, X, Upload,
-  Play, LayoutGrid, CalendarDays, ClipboardList,
+  Search, ChevronDown, ChevronRight, Edit3,
+  CornerDownRight, RefreshCw, CheckCircle2, X, Upload, Download,
+  Play, LayoutGrid, CalendarDays, ClipboardList, SlidersHorizontal,
   Building2, BarChart3, Settings, Calendar, ArrowRight,
-  MoveRight, Check, FileSpreadsheet, RotateCcw, Filter, Info, ExternalLink
+  MoveRight, Check, FileSpreadsheet, RotateCcw, Filter, Info, ExternalLink,
+  Trash2, AlertCircle
 } from 'lucide-react'
 
 // --- UTILS ---
@@ -62,6 +63,13 @@ export interface Area {
 export interface AreaGroup {
   flaechentyp: string
   areas: Area[]
+}
+
+export interface VisibleColumns {
+  firstExecutionDay: boolean
+  missedHandling: boolean
+  nextFixed: boolean
+  categories: boolean
 }
 
 const MISSED_HANDLING_LABEL: Record<string, string> = {
@@ -239,6 +247,104 @@ function OverrideBadge({ label = 'Übersteuert' }: { label?: string }) {
   )
 }
 
+// --- INTERACTIVE MISSED HANDLING CELL ---
+function MissedHandlingCell({ value, onChange }: { value: MissedHandling; onChange: (v: MissedHandling) => void }) {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="relative inline-block text-left" onClick={(e) => e.stopPropagation()}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="group inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 shadow-2xs hover:border-slate-300 hover:bg-slate-50 transition-colors"
+      >
+        {value === 'jump' ? <CornerDownRight className="h-3.5 w-3.5 text-slate-500" /> : <RefreshCw className="h-3.5 w-3.5 text-slate-500" />}
+        <span className="font-medium">{MISSED_HANDLING_LABEL[value]}</span>
+        <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 z-20 mt-1 w-72 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl ring-1 ring-black/5">
+            <button
+              onClick={() => { onChange('jump'); setOpen(false) }}
+              className={cn("group flex w-full flex-col text-left rounded-lg p-2 text-xs transition-colors hover:bg-slate-50", value === 'jump' ? "bg-blue-50/70 text-blue-900 font-semibold" : "text-slate-700")}
+            >
+              <div className="flex items-center gap-1.5 font-medium">
+                <CornerDownRight className="h-3.5 w-3.5 text-blue-600" />
+                Auf nächstes Datum springen
+              </div>
+              <span className="mt-1 text-[11px] font-normal text-slate-500 leading-snug">
+                Regelmässige Planung läuft weiter, verpasster Termin entfällt.
+              </span>
+            </button>
+
+            <button
+              onClick={() => { onChange('replan'); setOpen(false) }}
+              className={cn("group flex w-full flex-col text-left rounded-lg p-2 text-xs transition-colors hover:bg-slate-50 mt-1", value === 'replan' ? "bg-blue-50/70 text-blue-900 font-semibold" : "text-slate-700")}
+            >
+              <div className="flex items-center gap-1.5 font-medium">
+                <RefreshCw className="h-3.5 w-3.5 text-blue-600" />
+                Neu planen
+              </div>
+              <span className="mt-1 text-[11px] font-normal text-slate-500 leading-snug">
+                Termin bleibt als Aufgabe stehen, bis er nachgeholt wurde.
+              </span>
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// --- COLUMN CONFIGURATOR DROPDOWN ---
+function ColumnConfigurator({ visibleColumns, onToggleColumn }: { visibleColumns: VisibleColumns; onToggleColumn: (key: keyof VisibleColumns) => void }) {
+  const [open, setOpen] = useState(false)
+  const columnsList: { key: keyof VisibleColumns; label: string }[] = [
+    { key: 'firstExecutionDay', label: 'Erster Ausführungstag' },
+    { key: 'missedHandling', label: 'Verhalten bei Ausfall' },
+    { key: 'nextFixed', label: 'Nächste fixe Reinigung' },
+    { key: 'categories', label: 'Geplante Kategorien & Termine' },
+  ]
+
+  return (
+    <div className="relative inline-block text-left">
+      <button
+        onClick={() => setOpen(!open)}
+        className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50 transition-colors"
+      >
+        <SlidersHorizontal className="h-3.5 w-3.5 text-slate-500" />
+        Spalten anpassen
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 z-20 mt-1.5 w-64 rounded-xl border border-slate-200 bg-white p-3 shadow-xl ring-1 ring-black/5">
+            <div className="mb-2 text-xs font-bold text-slate-800 border-b border-slate-100 pb-1.5">
+              Sichtbare Spalten
+            </div>
+            <div className="space-y-2">
+              {columnsList.map((col) => (
+                <label key={col.key} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer hover:text-slate-900 select-none">
+                  <input
+                    type="checkbox"
+                    checked={visibleColumns[col.key]}
+                    onChange={() => onToggleColumn(col.key)}
+                    className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span>{col.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 // --- LAYOUT COMPONENTS ---
 function Sidebar() {
   const items = [
@@ -289,6 +395,224 @@ function TopHeader() {
         ))}
       </div>
     </header>
+  )
+}
+
+// --- EMPTY STATE (ZUSTAND A - OHNE ICON) ---
+function EmptyState({ onGenerate, staggerSchedule, setStaggerSchedule }: { onGenerate: () => void; staggerSchedule: boolean; setStaggerSchedule: (v: boolean) => void }) {
+  return (
+    <div className="mx-auto my-8 max-w-3xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+      <h3 className="text-xl font-bold tracking-tight text-slate-900">
+        Noch keine Monatsplanung für diese Wirtschaftseinheit erstellt
+      </h3>
+      
+      <div className="mt-4 space-y-2.5 text-sm text-slate-600">
+        <div className="flex items-start gap-2.5">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 font-mono text-xs font-bold text-slate-600">1</span>
+          <span>Aktivieren Sie die automatische Monatsplanung für die benötigten Kategorien.</span>
+        </div>
+        <div className="flex items-start gap-2.5">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 font-mono text-xs font-bold text-slate-600">2</span>
+          <span>Konfigurieren Sie passende monatliche und jährliche Reinigungsfrequenzen.</span>
+        </div>
+        <div className="flex items-start gap-2.5">
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 font-mono text-xs font-bold text-slate-600">3</span>
+          <span>Generieren Sie den Plan und prüfen Sie die Fläche/Kategorie-Übersicht.</span>
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            checked={staggerSchedule}
+            onChange={(e) => setStaggerSchedule(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+          />
+          <div>
+            <span className="text-sm font-semibold text-slate-900">
+              Ausführungen automatisch über den Monat staffeln
+            </span>
+            <p className="mt-1 text-xs text-slate-600 leading-relaxed">
+              Sorgt für ein gleichmässiges Reinigungsaufkommen: Verteilt die Flächen eines Stockwerks sinnvoll auf verschiedene Wochentage und plant seltene Frequenzen (z. B. viermal oder einmal jährlich) gleichmässig über das Jahr. Deaktiviert: Nutzt direkt die hinterlegten Startdaten der Leistungen.
+            </p>
+          </div>
+        </label>
+      </div>
+
+      <div className="mt-6 flex justify-end">
+        <button
+          onClick={onGenerate}
+          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-blue-700 transition-colors"
+        >
+          <Play className="h-4 w-4" /> Monatsplanung generieren
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// --- RE-PLANNING WIZARD MODAL ---
+function ReplanWizardModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: () => void }) {
+  const [step, setStep] = useState<1 | 2>(1)
+  const [timeframe, setTimeframe] = useState<'sofort' | 'nextMonth'>('sofort')
+  const [areaScope, setAreaScope] = useState<string>('Alle Flächentypen')
+  const [resetOverrides, setResetOverrides] = useState(false)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
+      <div className="flex max-h-[92vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Monatsplanung aktualisieren</h3>
+            <p className="text-xs text-slate-500">Schritt {step} von 2: {step === 1 ? 'Zeitraum & Umfang wählen' : 'Vorschau der Änderungen'}</p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {step === 1 ? (
+            <>
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">1. Gültig ab</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setTimeframe('sofort')}
+                    className={cn("rounded-xl border p-3 text-left transition-all", timeframe === 'sofort' ? "border-blue-500 bg-blue-50/50 ring-1 ring-blue-500" : "border-slate-200 bg-white hover:bg-slate-50")}
+                  >
+                    <div className="text-xs font-bold text-slate-900">Ab sofort</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">Betrifft alle offenen Termine ab heute</div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTimeframe('nextMonth')}
+                    className={cn("rounded-xl border p-3 text-left transition-all", timeframe === 'nextMonth' ? "border-blue-500 bg-blue-50/50 ring-1 ring-blue-500" : "border-slate-200 bg-white hover:bg-slate-50")}
+                  >
+                    <div className="text-xs font-bold text-slate-900">Ab nächstem Monat</div>
+                    <div className="text-[11px] text-slate-500 mt-0.5">Planung für laufenden Monat unverändert lassen</div>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">2. Betroffene Flächentypen</label>
+                <select
+                  value={areaScope}
+                  onChange={(e) => setAreaScope(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs text-slate-800 outline-none focus:border-blue-500"
+                >
+                  <option value="Alle Flächentypen">Alle Flächentypen</option>
+                  <option value="Büro">Büro</option>
+                  <option value="Flur & Erschliessung">Flur &amp; Erschliessung</option>
+                  <option value="Sanitärbereich">Sanitärbereich</option>
+                </select>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={resetOverrides}
+                    onChange={(e) => setResetOverrides(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-slate-900">Manuelle Änderungen auf Standard zurücksetzen</span>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Standardmässig bleiben manuelle Terminverschiebungen geschützt.</p>
+                  </div>
+                </label>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4 text-xs text-blue-900">
+                <div className="font-bold mb-1">Zusammenfassung der Neuberechnung:</div>
+                <ul className="list-disc pl-4 space-y-1 text-blue-800">
+                  <li>12 Termine verschieben sich aufgrund geänderter Stammdaten.</li>
+                  <li>{resetOverrides ? 'Zwei manuelle Änderungen werden überschrieben.' : 'Manuelle Übersteuerungen bleiben vollständig erhalten.'}</li>
+                  <li>Berechnung erfolgt für: <span className="font-semibold">{areaScope}</span>.</li>
+                </ul>
+              </div>
+              <p className="text-xs text-slate-500">
+                Bitte bestätigen Sie die Ausführung. Dieser Vorgang aktualisiert die Monatsplanung sofort.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-4">
+          <button onClick={onClose} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+            Abbrechen
+          </button>
+          {step === 1 ? (
+            <button onClick={() => setStep(2)} className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700">
+              Weiter zur Vorschau
+            </button>
+          ) : (
+            <button onClick={onConfirm} className="rounded-xl bg-blue-600 px-5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700">
+              Jetzt aktualisieren
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// --- DELETE CONFIRM MODAL ---
+function DeleteConfirmModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: () => void }) {
+  const [inputText, setInputText] = useState('')
+  const isMatch = inputText.trim() === 'LÖSCHEN'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-800">
+            <AlertCircle className="h-5 w-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-900">Gesamte Monatsplanung löschen</h3>
+            <p className="text-xs text-slate-500">Dieser Vorgang kann nicht rückgängig gemacht werden</p>
+          </div>
+        </div>
+
+        <div className="my-5 space-y-4">
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Dadurch werden <strong className="text-slate-900">alle</strong> generierten Monatsplanungstermine sowie sämtliche manuellen Übersteuerungen für diese Wirtschaftseinheit unwiderruflich entfernt.
+          </p>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Geben Sie <span className="font-mono text-slate-900 uppercase">LÖSCHEN</span> ein, um zu bestätigen:
+            </label>
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="LÖSCHEN"
+              className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs text-slate-900 outline-none focus:border-slate-800 focus:ring-2 focus:ring-slate-200 font-mono"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-4">
+          <button onClick={onClose} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
+            Abbrechen
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={!isMatch}
+            className="rounded-xl bg-[#0A2540] px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-slate-800 disabled:opacity-40 transition-all"
+          >
+            Endgültig löschen
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -420,7 +744,7 @@ function BulkActionBar({ count, onClear }: { count: number; onClear: () => void 
 }
 
 // --- ROW DETAIL DRAWER ---
-function RowDetail({ area, onShift }: { area: Area; onShift: (catName: string, catFreq: string, date: string) => void }) {
+function RowDetail({ area, visibleColumns, onShift }: { area: Area; visibleColumns: VisibleColumns; onShift: (catName: string, catFreq: string, date: string) => void }) {
   const [timeframe, setTimeframe] = useState('12 Monate')
 
   return (
@@ -497,9 +821,11 @@ function RowDetail({ area, onShift }: { area: Area; onShift: (catName: string, c
 
 // --- MATRIX TABLE ---
 function MatrixTable({
-  groups, selectedIds, expandedId, collapsedGroups,
-  onToggleSelect, onToggleExpand, onToggleGroup, onEditCell
+  groups, selectedIds, expandedId, collapsedGroups, visibleColumns,
+  onToggleSelect, onToggleExpand, onToggleGroup, onEditCell, onChangeMissedHandling
 }: any) {
+  const calcColSpan = 2 + (visibleColumns.firstExecutionDay ? 1 : 0) + (visibleColumns.missedHandling ? 1 : 0) + (visibleColumns.nextFixed ? 1 : 0) + (visibleColumns.categories ? 1 : 0)
+
   return (
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-xs">
       <table className="w-full min-w-[950px] border-collapse text-left">
@@ -507,28 +833,44 @@ function MatrixTable({
           <tr className="border-b border-slate-200 bg-slate-50/80 text-xs font-semibold uppercase tracking-wider text-slate-500">
             <th className="w-10 px-3 py-3" />
             <th className="min-w-[220px] px-3 py-3">Flächen</th>
-            <th className="px-3 py-3">Erster Ausführungstag</th>
-            <th className="px-3 py-3">Logik bei Ausfall</th>
-            <th className="px-3 py-3">Nächste fixe Reinigung</th>
-            <th className="px-3 py-3 min-w-[320px]">Geplante Kategorien &amp; Termine</th>
-            <th className="px-3 py-3 text-right">Aktionen</th>
+            {visibleColumns.firstExecutionDay && <th className="px-3 py-3">Erster Ausführungstag</th>}
+            {visibleColumns.missedHandling && <th className="px-3 py-3">Verhalten bei Ausfall</th>}
+            {visibleColumns.nextFixed && <th className="px-3 py-3">Nächste fixe Reinigung</th>}
+            {visibleColumns.categories && <th className="px-3 py-3 min-w-[320px]">Geplante Kategorien &amp; Termine</th>}
           </tr>
         </thead>
         <tbody>
           {groups.map((group: AreaGroup) => {
             const collapsed = collapsedGroups.includes(group.flaechentyp)
 
+            const totalAreas = group.areas.length
+            const totalMods = group.areas.reduce((acc, a) => acc + (a.manualMods || (a.categories.some(c => c.overridden) ? 1 : 0)), 0)
+            const dates = group.areas.map(a => a.nextFixed).filter(Boolean)
+            dates.sort((a, b) => a.split('.').reverse().join('-').localeCompare(b.split('.').reverse().join('-')))
+            const nextCleaning = dates[0] || 'Keine'
+
             return (
               <Fragment key={group.flaechentyp}>
                 <tr className="border-b border-slate-200 bg-slate-100/80">
-                  <td colSpan={7} className="px-3 py-2.5">
-                    <button onClick={() => onToggleGroup(group.flaechentyp)} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-800 hover:text-blue-700">
-                      {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      {group.flaechentyp}
-                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
-                        {group.areas.length} Fläche{group.areas.length === 1 ? '' : 'n'}
-                      </span>
-                    </button>
+                  <td colSpan={calcColSpan} className="px-3 py-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <button onClick={() => onToggleGroup(group.flaechentyp)} className="inline-flex items-center gap-2 text-sm font-semibold text-slate-800 hover:text-blue-700">
+                        {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                        {group.flaechentyp}
+                      </button>
+
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className="rounded-md bg-slate-200/80 px-2.5 py-0.5 font-medium text-slate-700">
+                          {totalAreas} {totalAreas === 1 ? 'Fläche' : 'Flächen'}
+                        </span>
+                        <span className="rounded-md bg-amber-100 px-2.5 py-0.5 font-semibold text-amber-900 border border-amber-200/80">
+                          {totalMods} {totalMods === 1 ? 'manuelle Änderung' : 'manuelle Änderungen'}
+                        </span>
+                        <span className="rounded-md bg-blue-50 px-2.5 py-0.5 font-medium text-blue-700 border border-blue-200/80">
+                          Nächste Reinigung: <span className="font-mono font-bold">{nextCleaning}</span>
+                        </span>
+                      </div>
+                    </div>
                   </td>
                 </tr>
                 {!collapsed &&
@@ -554,51 +896,54 @@ function MatrixTable({
                               </div>
                             </div>
                           </td>
-                          <td className="px-3 py-3 align-top" onClick={(e) => e.stopPropagation()}>
-                            <button onClick={() => onEditCell(area, 'Erster Ausführungstag', '', area.firstExecutionDay)} className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1 font-mono text-xs text-slate-700 shadow-xs hover:bg-slate-50">
-                              {area.firstExecutionDay} <Edit3 className="h-3 w-3 text-slate-400" />
-                            </button>
-                          </td>
-                          <td className="px-3 py-3 align-top">
-                            <span className="inline-flex items-center gap-1.5 text-xs text-slate-600">
-                              {area.missedHandling === 'jump' ? <CornerDownRight className="h-3.5 w-3.5 text-slate-400" /> : <RefreshCw className="h-3.5 w-3.5 text-slate-400" />}
-                              {MISSED_HANDLING_LABEL[area.missedHandling]}
-                            </span>
-                          </td>
-                          <td className="px-3 py-3 align-top"><span className="font-mono text-xs text-slate-700">{area.nextFixed}</span></td>
-                          
-                          <td className="px-3 py-3 align-top" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex flex-wrap gap-1.5">
-                              {area.categories.map((cat) => (
-                                <button
-                                  key={cat.key}
-                                  onClick={() => onEditCell(area, cat.name, cat.frequency, cat.date!)}
-                                  className={cn(
-                                    'group inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-all',
-                                    cat.overridden
-                                      ? 'border-amber-300 bg-amber-50 text-amber-900 font-medium'
-                                      : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-blue-300 hover:bg-blue-50/50'
-                                  )}
-                                  title={`${cat.name} (${cat.frequency})`}
-                                >
-                                  <span className="font-semibold">{cat.name}:</span>
-                                  <span className="font-mono">{cat.date}</span>
-                                  {cat.overridden && <AlertTriangle className="h-3 w-3 text-amber-600" />}
-                                </button>
-                              ))}
-                            </div>
-                          </td>
 
-                          <td className="px-3 py-3 align-top text-right" onClick={(e) => e.stopPropagation()}>
-                            <button className="h-8 w-8 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700 inline-flex justify-center items-center">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </button>
-                          </td>
+                          {visibleColumns.firstExecutionDay && (
+                            <td className="px-3 py-3 align-top" onClick={(e) => e.stopPropagation()}>
+                              <button onClick={() => onEditCell(area, 'Erster Ausführungstag', '', area.firstExecutionDay)} className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1 font-mono text-xs text-slate-700 shadow-2xs hover:bg-slate-50">
+                                {area.firstExecutionDay} <Edit3 className="h-3 w-3 text-slate-400" />
+                              </button>
+                            </td>
+                          )}
+
+                          {visibleColumns.missedHandling && (
+                            <td className="px-3 py-3 align-top">
+                              <MissedHandlingCell value={area.missedHandling} onChange={(val) => onChangeMissedHandling(area.id, val)} />
+                            </td>
+                          )}
+
+                          {visibleColumns.nextFixed && (
+                            <td className="px-3 py-3 align-top"><span className="font-mono text-xs text-slate-700">{area.nextFixed}</span></td>
+                          )}
+
+                          {visibleColumns.categories && (
+                            <td className="px-3 py-3 align-top" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex flex-wrap gap-1.5">
+                                {area.categories.map((cat) => (
+                                  <button
+                                    key={cat.key}
+                                    onClick={() => onEditCell(area, cat.name, cat.frequency, cat.date!)}
+                                    className={cn(
+                                      'group inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-all',
+                                      cat.overridden
+                                        ? 'border-amber-300 bg-amber-50 text-amber-900 font-medium'
+                                        : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-blue-300 hover:bg-blue-50/50'
+                                    )}
+                                    title={`${cat.name} (${cat.frequency})`}
+                                  >
+                                    <span className="font-semibold">{cat.name}:</span>
+                                    <span className="font-mono">{cat.date}</span>
+                                    {cat.overridden && <AlertTriangle className="h-3 w-3 text-amber-600" />}
+                                  </button>
+                                ))}
+                              </div>
+                            </td>
+                          )}
                         </tr>
+
                         {expanded && (
                           <tr>
-                            <td colSpan={7} className="p-0">
-                              <RowDetail area={area} onShift={(catName, catFreq, date) => onEditCell(area, catName, catFreq, date)} />
+                            <td colSpan={calcColSpan} className="p-0">
+                              <RowDetail area={area} visibleColumns={visibleColumns} onShift={(catName, catFreq, date) => onEditCell(area, catName, catFreq, date)} />
                             </td>
                           </tr>
                         )}
@@ -631,10 +976,7 @@ function DateView({ groups, onMoveEntry }: { groups: AreaGroup[]; onMoveEntry: (
       })
     })
 
-    flatList.sort((a, b) => {
-      const parse = (d: string) => d.split('.').reverse().join('-')
-      return parse(a.date).localeCompare(parse(b.date))
-    })
+    flatList.sort((a, b) => a.date.split('.').reverse().join('-').localeCompare(b.date.split('.').reverse().join('-')))
 
     const res: { monthKey: string; items: typeof flatList }[] = []
     flatList.forEach((item) => {
@@ -790,8 +1132,8 @@ function ShiftModal({ context, onClose, onSave }: { context: ShiftContext; onClo
             <section>
               <h4 className="mb-2 text-sm font-semibold text-slate-900">2. Folgetermine</h4>
               <div className="flex flex-col gap-2">
-                <RadioRow checked={followMode === 'only'} onChange={() => setFollowMode('only')} title="Nur dieser Termin" />
-                <RadioRow checked={followMode === 'all'} onChange={() => setFollowMode('all')} title="Auch alle Folgetermine" />
+                <RadioRow checked={followMode === 'only'} onChange={() => setFollowMode('only')} title="Nur diesen Termin anpassen" />
+                <RadioRow checked={followMode === 'all'} onChange={() => setFollowMode('all')} title="Auch alle Folgetermine anpassen" />
               </div>
               {followMode === 'all' && (
                 <div className="mt-2.5 flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2 text-xs font-medium text-blue-700">
@@ -816,10 +1158,10 @@ function ShiftModal({ context, onClose, onSave }: { context: ShiftContext; onClo
             <div className="flex flex-col gap-2.5">
               <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
                 <div className="text-xs font-semibold text-slate-800">{context.categoryName} ({context.categoryFreq})</div>
-                <div className="mt-1 flex items-center gap-2 font-mono text-xs">
-                  <span className="line-through text-slate-400">{context.currentDate}</span>
-                  <ArrowRight className="h-3 w-3 text-amber-500" />
-                  <span className="font-bold text-amber-700">{newDate}</span>
+                <div className="mt-1.5 flex items-center gap-2 text-xs">
+                  <span className="text-slate-500 font-mono">{context.currentDate}</span>
+                  <ArrowRight className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                  <span className="font-bold text-blue-600 font-mono">{newDate}</span>
                 </div>
               </div>
 
@@ -827,10 +1169,10 @@ function ShiftModal({ context, onClose, onSave }: { context: ShiftContext; onClo
                 followUpDates.map((item, idx) => (
                   <div key={idx} className="rounded-xl border border-slate-200 bg-white p-3 shadow-2xs">
                     <div className="text-xs font-semibold text-slate-700">{item.label}</div>
-                    <div className="mt-1 flex items-center gap-2 font-mono text-xs">
-                      <span className="line-through text-slate-400">{item.oldDate}</span>
-                      <ArrowRight className="h-3 w-3 text-amber-500" />
-                      <span className="font-bold text-amber-700">{item.newDate}</span>
+                    <div className="mt-1.5 flex items-center gap-2 text-xs">
+                      <span className="text-slate-500 font-mono">{item.oldDate}</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                      <span className="font-bold text-blue-600 font-mono">{item.newDate}</span>
                     </div>
                   </div>
                 ))}
@@ -886,6 +1228,13 @@ function CsvModal({ onClose }: { onClose: () => void }) {
 export default function FacilityApp() {
   const [groups, setGroups] = useState<AreaGroup[]>(INITIAL_GROUPS)
 
+  // Empty State Settings
+  const [staggerSchedule, setStaggerSchedule] = useState(true)
+
+  // Modals State
+  const [replanWizardOpen, setReplanWizardOpen] = useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+
   // Filters State
   const [search, setSearch] = useState('')
   const [gebaeude, setGebaeude] = useState('all')
@@ -894,6 +1243,14 @@ export default function FacilityApp() {
   const [frequenz, setFrequenz] = useState('all')
   const [kategorie, setKategorie] = useState('all')
   const [onlyManualMods, setOnlyManualMods] = useState(false)
+
+  // Column Visibility State
+  const [visibleColumns, setVisibleColumns] = useState<VisibleColumns>({
+    firstExecutionDay: true,
+    missedHandling: true,
+    nextFixed: true,
+    categories: true,
+  })
 
   // Layout State
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -909,6 +1266,24 @@ export default function FacilityApp() {
     window.setTimeout(() => setToast(null), 2800)
   }
 
+  const hasPlan = groups.length > 0 && groups.some((g) => g.areas.length > 0)
+
+  const handleGeneratePlan = () => {
+    setGroups(INITIAL_GROUPS)
+    showToast('Monatsplanung erfolgreich generiert!')
+  }
+
+  const handleDeletePlan = () => {
+    setGroups([])
+    setDeleteModalOpen(false)
+    showToast('Monatsplanung vollständig gelöscht.')
+  }
+
+  const handleConfirmReplan = () => {
+    setReplanWizardOpen(false)
+    showToast('Monatsplanung neu berechnet und aktualisiert.')
+  }
+
   const resetFilters = () => {
     setSearch('')
     setGebaeude('all')
@@ -917,6 +1292,24 @@ export default function FacilityApp() {
     setFrequenz('all')
     setKategorie('all')
     setOnlyManualMods(false)
+  }
+
+  const toggleColumn = (key: keyof VisibleColumns) => {
+    setVisibleColumns((prev) => ({ ...prev, [key]: !prev[key] }))
+  }
+
+  const changeMissedHandling = (areaId: string, val: MissedHandling) => {
+    setGroups((prev) =>
+      prev.map((g) => ({
+        ...g,
+        areas: g.areas.map((a) => (a.id === areaId ? { ...a, missedHandling: val } : a)),
+      }))
+    )
+    showToast(`Verhalten bei Ausfall angepasst: ${MISSED_HANDLING_LABEL[val]}`)
+  }
+
+  const handleExportCsv = () => {
+    showToast('CSV-Export gestartet — Datei wird heruntergeladen...')
   }
 
   const filteredGroups = useMemo(() => {
@@ -993,62 +1386,96 @@ export default function FacilityApp() {
               <button onClick={() => setCsvOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50">
                 <Upload className="h-3.5 w-3.5" /> CSV Upload
               </button>
-              <button onClick={() => showToast('Monatsplanung wird neu berechnet...')} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-blue-700">
-                <Play className="h-3.5 w-3.5" /> Planung ausführen
-              </button>
+              {hasPlan && (
+                <>
+                  <button onClick={handleExportCsv} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50">
+                    <Download className="h-3.5 w-3.5" /> CSV Export
+                  </button>
+                  {/* LÖSCHEN BUTTON ZWISCHEN CSV EXPORT UND PLANUNG AKTUALISIEREN */}
+                  <button onClick={() => setDeleteModalOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50">
+                    <Trash2 className="h-3.5 w-3.5 text-slate-500" /> Monatsplanung löschen
+                  </button>
+                </>
+              )}
+
+              {!hasPlan ? (
+                <button onClick={handleGeneratePlan} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-blue-700">
+                  <Play className="h-3.5 w-3.5" /> Monatsplanung generieren
+                </button>
+              ) : (
+                <button onClick={() => setReplanWizardOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-blue-700">
+                  <Play className="h-3.5 w-3.5" /> Planung aktualisieren
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Filter Bar */}
-          <FilterBar
-            search={search} onSearch={setSearch}
-            gebaeude={gebaeude} onGebaeude={setGebaeude}
-            stockwerk={stockwerk} onStockwerk={setStockwerk}
-            flaechentyp={flaechentyp} onFlaechentyp={setFlaechentyp}
-            frequenz={frequenz} onFrequenz={setFrequenz}
-            kategorie={kategorie} onKategorie={setKategorie}
-            onlyManualMods={onlyManualMods} onToggleManualMods={() => setOnlyManualMods(!onlyManualMods)}
-            onResetFilters={resetFilters}
-          />
-
-          {/* View Switcher Bar */}
-          <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-2">
-            <span className="text-xs font-medium text-slate-500">
-              {filteredGroups.reduce((acc, g) => acc + g.areas.length, 0)} Flächen gefunden
-            </span>
-            <div className="inline-flex rounded-md border border-slate-200 bg-slate-100 p-0.5">
-              <button onClick={() => setView('matrix')} className={cn("inline-flex items-center gap-1.5 rounded px-3 py-1 text-xs font-semibold transition-colors", view === 'matrix' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900')}>
-                <LayoutGrid className="h-3.5 w-3.5" /> Matrixansicht
-              </button>
-              <button onClick={() => setView('date')} className={cn("inline-flex items-center gap-1.5 rounded px-3 py-1 text-xs font-semibold transition-colors", view === 'date' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900')}>
-                <CalendarDays className="h-3.5 w-3.5" /> Datumsansicht
-              </button>
-            </div>
-          </div>
-
-          {/* Main Display Area */}
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
-            {filteredGroups.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-slate-200 rounded-xl bg-white">
-                <Filter className="h-8 w-8 text-slate-300 mb-2" />
-                <p className="text-sm font-semibold text-slate-700">Keine Flächen für die gewählten Filter gefunden</p>
-                <button onClick={resetFilters} className="mt-3 text-xs font-semibold text-blue-600 hover:underline">Filter zurücksetzen</button>
-              </div>
-            ) : view === 'matrix' ? (
-              <MatrixTable
-                groups={filteredGroups} selectedIds={selectedIds} expandedId={expandedId} collapsedGroups={collapsedGroups}
-                onToggleSelect={toggleSelect} onToggleExpand={toggleExpand} onToggleGroup={toggleGroup} onEditCell={openShift}
+          {hasPlan ? (
+            <>
+              {/* Filter Bar */}
+              <FilterBar
+                search={search} onSearch={setSearch}
+                gebaeude={gebaeude} onGebaeude={setGebaeude}
+                stockwerk={stockwerk} onStockwerk={setStockwerk}
+                flaechentyp={flaechentyp} onFlaechentyp={setFlaechentyp}
+                frequenz={frequenz} onFrequenz={setFrequenz}
+                kategorie={kategorie} onKategorie={setKategorie}
+                onlyManualMods={onlyManualMods} onToggleManualMods={() => setOnlyManualMods(!onlyManualMods)}
+                onResetFilters={resetFilters}
               />
-            ) : (
-              <DateView groups={filteredGroups} onMoveEntry={openShift} />
-            )}
-            <div className="h-24" aria-hidden />
-          </div>
+
+              {/* View Switcher & Column Configurator Bar */}
+              <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-2">
+                <span className="text-xs font-medium text-slate-500">
+                  {filteredGroups.reduce((acc, g) => acc + g.areas.length, 0)} Flächen gefunden
+                </span>
+                <div className="flex items-center gap-2">
+                  {view === 'matrix' && (
+                    <ColumnConfigurator visibleColumns={visibleColumns} onToggleColumn={toggleColumn} />
+                  )}
+                  <div className="inline-flex rounded-md border border-slate-200 bg-slate-100 p-0.5">
+                    <button onClick={() => setView('matrix')} className={cn("inline-flex items-center gap-1.5 rounded px-3 py-1 text-xs font-semibold transition-colors", view === 'matrix' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900')}>
+                      <LayoutGrid className="h-3.5 w-3.5" /> Matrixansicht
+                    </button>
+                    <button onClick={() => setView('date')} className={cn("inline-flex items-center gap-1.5 rounded px-3 py-1 text-xs font-semibold transition-colors", view === 'date' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900')}>
+                      <CalendarDays className="h-3.5 w-3.5" /> Datumsansicht
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Main Display Area */}
+              <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
+                {filteredGroups.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-slate-200 rounded-xl bg-white">
+                    <Filter className="h-8 w-8 text-slate-300 mb-2" />
+                    <p className="text-sm font-semibold text-slate-700">Keine Flächen für die gewählten Filter gefunden</p>
+                    <button onClick={resetFilters} className="mt-3 text-xs font-semibold text-blue-600 hover:underline">Filter zurücksetzen</button>
+                  </div>
+                ) : view === 'matrix' ? (
+                  <MatrixTable
+                    groups={filteredGroups} selectedIds={selectedIds} expandedId={expandedId} collapsedGroups={collapsedGroups} visibleColumns={visibleColumns}
+                    onToggleSelect={toggleSelect} onToggleExpand={toggleExpand} onToggleGroup={toggleGroup} onEditCell={openShift} onChangeMissedHandling={changeMissedHandling}
+                  />
+                ) : (
+                  <DateView groups={filteredGroups} onMoveEntry={openShift} />
+                )}
+                <div className="h-24" aria-hidden />
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 overflow-y-auto p-4">
+              <EmptyState onGenerate={handleGeneratePlan} staggerSchedule={staggerSchedule} setStaggerSchedule={setStaggerSchedule} />
+            </div>
+          )}
         </main>
       </div>
 
-      <BulkActionBar count={selectedIds.length} onClear={() => setSelectedIds([])} />
+      {hasPlan && <BulkActionBar count={selectedIds.length} onClear={() => setSelectedIds([])} />}
 
+      {/* MODALS */}
+      {replanWizardOpen && <ReplanWizardModal onClose={() => setReplanWizardOpen(false)} onConfirm={handleConfirmReplan} />}
+      {deleteModalOpen && <DeleteConfirmModal onClose={() => setDeleteModalOpen(false)} onConfirm={handleDeletePlan} />}
       {shiftContext && <ShiftModal context={shiftContext} onClose={() => setShiftContext(null)} onSave={saveShift} />}
       {csvOpen && <CsvModal onClose={() => setCsvOpen(false)} />}
 
