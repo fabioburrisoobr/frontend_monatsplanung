@@ -8,7 +8,7 @@ import {
   Play, LayoutGrid, CalendarDays, ClipboardList, SlidersHorizontal,
   Building2, BarChart3, Settings, Calendar, ArrowRight,
   MoveRight, Check, FileSpreadsheet, RotateCcw, Filter, Info, ExternalLink,
-  Trash2, AlertCircle
+  Trash2, AlertCircle, ArrowLeft
 } from 'lucide-react'
 
 // --- UTILS ---
@@ -77,7 +77,113 @@ const MISSED_HANDLING_LABEL: Record<string, string> = {
   replan: 'Neu planen',
 }
 
-// --- MOCK DATA ---
+// --- WIZARD SPECIFIC TYPES ---
+export interface ServiceItem {
+  id: string
+  name: string
+  type: 'Reinigung' | 'Qualität' | 'Reinigung ohne Zeitplanung' | 'On Demand'
+  frequency: string
+  days: string[]
+}
+
+export interface ConfigCategory {
+  id: string
+  name: string
+  status: 'aktiv' | 'inaktiv' | 'nicht_moeglich'
+  disabledReason?: string
+  selected: boolean
+  services: ServiceItem[]
+}
+
+export interface ConfigAreaType {
+  id: string
+  name: string
+  selected: boolean
+  categories: ConfigCategory[]
+}
+
+const WEEKDAYS_MAP = [
+  { key: 'Mo', label: 'Montag' },
+  { key: 'Di', label: 'Dienstag' },
+  { key: 'Mi', label: 'Mittwoch' },
+  { key: 'Do', label: 'Donnerstag' },
+  { key: 'Fr', label: 'Freitag' },
+  { key: 'Sa', label: 'Samstag' },
+  { key: 'So', label: 'Sonntag' },
+]
+
+// --- MOCK WIZARD DATA (ALLE FLÄCHENTYPEN DEFAULT SELECTED: TRUE) ---
+const EXTENDED_WIZARD_DATA: ConfigAreaType[] = [
+  {
+    id: 'buero',
+    name: 'Büro & Einzelarbeitsplätze',
+    selected: true,
+    categories: [
+      {
+        id: 'b-ur', name: 'Unterhaltsreinigung', status: 'aktiv', selected: true,
+        services: [
+          { id: 'b-ur-1', name: 'Unterhaltsreinigung Standard', type: 'Reinigung', frequency: '2xM', days: ['Di', 'Do'] },
+          { id: 'b-ur-2', name: 'Mülleimer leeren & Papier', type: 'Reinigung', frequency: '2xM', days: ['Di', 'Do'] }
+        ]
+      },
+      {
+        id: 'b-gr', name: 'Grundreinigung', status: 'aktiv', selected: true,
+        services: [{ id: 'b-gr-1', name: 'Teppich-Grundreinigung', type: 'Reinigung', frequency: '1xJ', days: ['Fr'] }]
+      },
+      {
+        id: 'b-sr', name: 'Sichtreinigung', status: 'nicht_moeglich', disabledReason: 'Inkonsistente Wochentags-Zuordnung innerhalb der Leistungsserie.', selected: false,
+        services: [
+          { id: 'b-sr-1', name: 'Sichtreinigung Schreibtische', type: 'Reinigung', frequency: '1xM', days: ['Di'] },
+          { id: 'b-sr-2', name: 'Sichtreinigung Monitorperipherie', type: 'Reinigung', frequency: '1xM', days: ['Do'] }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'flur', name: 'Flur, Treppenhäuser & Passagierbereiche', selected: true,
+    categories: [
+      {
+        id: 'f-glas', name: 'Glas- & Rahmenreinigung', status: 'aktiv', selected: true,
+        services: [{ id: 'f-glas-1', name: 'Glasflächen Innen', type: 'Reinigung', frequency: '1xM', days: ['Mi'] }]
+      },
+      {
+        id: 'f-kristall', name: 'Kristallisierung', status: 'inaktiv', selected: false,
+        services: [{ id: 'f-k1', name: 'Marmorboden auffrischen', type: 'Reinigung', frequency: '1xJ', days: ['Sa'] }]
+      },
+      {
+        id: 'f-od', name: 'Sonderaufträge On-Demand', status: 'nicht_moeglich', disabledReason: 'Keine geeignete aktive Frequenz vorhanden.', selected: false,
+        services: [{ id: 'f-od-1', name: 'Graffitientfernung', type: 'On Demand', frequency: 'Keine', days: [] }]
+      }
+    ]
+  },
+  {
+    id: 'sanitaer', name: 'Sanitärbereich & Waschanlagen', selected: true,
+    categories: [
+      {
+        id: 's-entk', name: 'Grundentkalkung', status: 'aktiv', selected: true,
+        services: [{ id: 's-entk-1', name: 'Entkalkung Armaturen & Fliesen', type: 'Reinigung', frequency: '2xM', days: ['Mo', 'Fr'] }]
+      },
+      {
+        id: 's-qual', name: 'Qualitätskontrolle Sanitär', status: 'inaktiv', selected: false,
+        services: [{ id: 's-q1', name: 'Hygiene-Audit', type: 'Qualität', frequency: '1xM', days: ['Fr'] }]
+      }
+    ]
+  },
+  { id: 'besprechung', name: 'Besprechungsräume & Konferenzzonen', selected: true, categories: [] },
+  { id: 'empfang', name: 'Empfangshalle & Foyer', selected: true, categories: [] },
+  { id: 'aufzuege', name: 'Aufzüge & Fahrstuhlschächte', selected: true, categories: [] },
+  { id: 'server', name: 'Serverräume & EDV-Zentralen', selected: true, categories: [] },
+  { id: 'kantine', name: 'Kantine, Mensa & Teeküchen', selected: true, categories: [] },
+  { id: 'tiefgarage', name: 'Tiefgarage & Parkdecks', selected: true, categories: [] },
+  { id: 'aussen', name: 'Außenbereich & Grünanlagen', selected: true, categories: [] },
+  { id: 'lager', name: 'Lager- & Logistikflächen', selected: true, categories: [] },
+  { id: 'labor', name: 'Labor- & Reinraumbereiche', selected: true, categories: [] },
+  { id: 'umkleiden', name: 'Umkleideräume & Duschen', selected: true, categories: [] },
+  { id: 'technik', name: 'Technikräume & Heizzentralen', selected: true, categories: [] },
+  { id: 'archiv', name: 'Archiv & Aktenlager', selected: true, categories: [] }
+]
+
+// --- MAIN DASHBOARD MOCK DATA ---
 const INITIAL_GROUPS: AreaGroup[] = [
   {
     flaechentyp: 'Büro',
@@ -398,54 +504,563 @@ function TopHeader() {
   )
 }
 
-// --- EMPTY STATE (ZUSTAND A - OHNE ICON) ---
-function EmptyState({ onGenerate, staggerSchedule, setStaggerSchedule }: { onGenerate: () => void; staggerSchedule: boolean; setStaggerSchedule: (v: boolean) => void }) {
+// --- WIZARD COMPONENT ---
+function FirstConfigWizard({
+  onComplete,
+  checkedCategoryIds,
+  setCheckedCategoryIds,
+  wizardData,
+  setWizardData
+}: {
+  onComplete: (stagger: boolean) => void
+  checkedCategoryIds: string[]
+  setCheckedCategoryIds: React.Dispatch<React.SetStateAction<string[]>>
+  wizardData: ConfigAreaType[]
+  setWizardData: React.Dispatch<React.SetStateAction<ConfigAreaType[]>>
+}) {
+  const [step, setStep] = useState<1 | 2 | 3>(1)
+
+  // Step 1 Search
+  const [step1Search, setStep1Search] = useState('')
+
+  // Step 2 Filters
+  const [selectedCatFilter, setSelectedCatFilter] = useState<string[]>([])
+  const [isCatDropdownOpen, setIsCatDropdownOpen] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<'all' | 'aktiv' | 'inaktiv' | 'nicht_moeglich'>('all')
+  const [onlyCleaningToggle, setOnlyCleaningToggle] = useState(true)
+
+  // Step 3 Flag
+  const [staggerSchedule, setStaggerSchedule] = useState(true)
+
+  // Step 1 Actions
+  const filteredStep1Areas = useMemo(() => {
+    const term = step1Search.trim().toLowerCase()
+    if (!term) return wizardData
+    return wizardData.filter(a => a.name.toLowerCase().includes(term))
+  }, [wizardData, step1Search])
+
+  const toggleSelectAllStep1 = (select: boolean) => {
+    setWizardData(prev => prev.map(a => ({ ...a, selected: select })))
+  }
+
+  const toggleAreaType = (id: string) => {
+    setWizardData(prev => prev.map(a => a.id === id ? { ...a, selected: !a.selected } : a))
+  }
+
+  const selectedAreaTypes = useMemo(() => wizardData.filter(a => a.selected), [wizardData])
+
+  const availableCategoryNames = useMemo(() => {
+    const names = new Set<string>()
+    selectedAreaTypes.forEach(at => at.categories.forEach(c => names.add(c.name)))
+    return Array.from(names)
+  }, [selectedAreaTypes])
+
+  const filteredAreaTypesStep2 = useMemo(() => {
+    return selectedAreaTypes.map(at => {
+      const cats = at.categories.filter(c => {
+        if (selectedCatFilter.length > 0 && !selectedCatFilter.includes(c.name)) return false
+        if (statusFilter !== 'all' && c.status !== statusFilter) return false
+        if (onlyCleaningToggle && !c.services.some(s => s.type === 'Reinigung')) return false
+        return true
+      })
+      return { ...at, categories: cats }
+    }).filter(at => at.categories.length > 0)
+  }, [selectedAreaTypes, selectedCatFilter, statusFilter, onlyCleaningToggle])
+
+  const toggleCheckedCategory = (catId: string) => {
+    setCheckedCategoryIds(prev => prev.includes(catId) ? prev.filter(x => x !== catId) : [...prev, catId])
+  }
+
+  const toggleSingleCategoryStatus = (areaTypeId: string, catId: string) => {
+    setWizardData(prev => prev.map(at => {
+      if (at.id !== areaTypeId) return at
+      return {
+        ...at,
+        categories: at.categories.map(c => {
+          if (c.id !== catId || c.status === 'nicht_moeglich') return c
+          return {
+            ...c,
+            status: c.status === 'aktiv' ? 'inaktiv' : 'aktiv',
+            selected: c.status !== 'aktiv'
+          }
+        })
+      }
+    }))
+  }
+
+  // --- NEW LOGIC FOR BULK CHECKBOX & DYNAMIC METADATA ---
+  const visibleCategoryIds = useMemo(() => {
+    return filteredAreaTypesStep2.flatMap(at => at.categories.map(c => c.id))
+  }, [filteredAreaTypesStep2])
+
+  const isAllVisibleChecked = visibleCategoryIds.length > 0 && visibleCategoryIds.every(id => checkedCategoryIds.includes(id))
+  const isSomeVisibleChecked = visibleCategoryIds.length > 0 && visibleCategoryIds.some(id => checkedCategoryIds.includes(id)) && !isAllVisibleChecked
+
+  const toggleAllVisibleCategories = () => {
+    if (isAllVisibleChecked) {
+      setCheckedCategoryIds(prev => prev.filter(id => !visibleCategoryIds.includes(id)))
+    } else {
+      setCheckedCategoryIds(prev => Array.from(new Set([...prev, ...visibleCategoryIds])))
+    }
+  }
+
+  const visibleAreaTypesCount = filteredAreaTypesStep2.length;
+  const visibleCategoriesCount = filteredAreaTypesStep2.reduce((acc, a) => acc + a.categories.length, 0);
+
   return (
-    <div className="mx-auto my-8 max-w-3xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-      <h3 className="text-xl font-bold tracking-tight text-slate-900">
-        Noch keine Monatsplanung für diese Wirtschaftseinheit erstellt
-      </h3>
-      
-      <div className="mt-4 space-y-2.5 text-sm text-slate-600">
-        <div className="flex items-start gap-2.5">
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 font-mono text-xs font-bold text-slate-600">1</span>
-          <span>Aktivieren Sie die automatische Monatsplanung für die benötigten Kategorien.</span>
-        </div>
-        <div className="flex items-start gap-2.5">
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 font-mono text-xs font-bold text-slate-600">2</span>
-          <span>Konfigurieren Sie passende monatliche und jährliche Reinigungsfrequenzen.</span>
-        </div>
-        <div className="flex items-start gap-2.5">
-          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-100 font-mono text-xs font-bold text-slate-600">3</span>
-          <span>Generieren Sie den Plan und prüfen Sie die Fläche/Kategorie-Übersicht.</span>
-        </div>
-      </div>
-
-      <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
-        <label className="flex cursor-pointer items-start gap-3">
-          <input
-            type="checkbox"
-            checked={staggerSchedule}
-            onChange={(e) => setStaggerSchedule(e.target.checked)}
-            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-          />
+    <div className="mx-auto my-6 max-w-6xl rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden font-sans">
+      {/* HEADER WIZARD */}
+      <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <span className="text-sm font-semibold text-slate-900">
-              Ausführungen automatisch über den Monat staffeln
-            </span>
-            <p className="mt-1 text-xs text-slate-600 leading-relaxed">
-              Sorgt für ein gleichmässiges Reinigungsaufkommen: Verteilt die Flächen eines Stockwerks sinnvoll auf verschiedene Wochentage und plant seltene Frequenzen (z. B. viermal oder einmal jährlich) gleichmässig über das Jahr. Deaktiviert: Nutzt direkt die hinterlegten Startdaten der Leistungen.
-            </p>
+            <span className="text-xs font-bold uppercase tracking-wider text-blue-600">Konfiguration</span>
+            <h2 className="text-lg font-bold text-slate-900">Monatsplanung einrichten</h2>
           </div>
-        </label>
+          <div className="flex items-center gap-2">
+            {[1, 2, 3].map((s) => (
+              <div key={s} className="flex items-center gap-1.5">
+                <span className={cn("flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-colors", step === s ? "bg-blue-600 text-white" : step > s ? "bg-emerald-500 text-white" : "bg-slate-200 text-slate-500")}>
+                  {step > s ? <Check className="h-4 w-4" /> : s}
+                </span>
+                <span className="text-xs font-medium text-slate-600 hidden sm:inline">
+                  {s === 1 ? 'Flächentypen' : s === 2 ? 'Kategorien & Frequenzen' : 'Plan generieren'}
+                </span>
+                {s < 3 && <span className="text-slate-300 mx-1">➔</span>}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div className="mt-6 flex justify-end">
+      {/* BODY WIZARD */}
+      <div className="p-6">
+        {/* STEP 1: FLÄCHENTYPEN WÄHLEN */}
+        {step === 1 && (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">1. Erstkonfiguration &amp; Datenübernahme</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Wählen Sie die Flächentypen aus, für welche die Monatsplanung aktiviert werden soll.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => toggleSelectAllStep1(true)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Alle auswählen</button>
+                <button onClick={() => toggleSelectAllStep1(false)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Alle abwählen</button>
+              </div>
+            </div>
+
+            <div className="relative max-w-md">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={step1Search}
+                onChange={(e) => setStep1Search(e.target.value)}
+                placeholder="Flächentyp suchen..."
+                className="h-9 w-full rounded-xl border border-slate-300 bg-white pl-9 pr-3 text-xs outline-none focus:border-blue-500"
+              />
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs max-h-[460px] overflow-y-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase tracking-wider">
+                    <th className="w-12 px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3">Flächentyp</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredStep1Areas.map((at) => (
+                    <tr
+                      key={at.id}
+                      onClick={() => toggleAreaType(at.id)}
+                      className={cn("cursor-pointer transition-colors", at.selected ? "bg-blue-50/30 font-semibold text-slate-900" : "hover:bg-slate-50 text-slate-600")}
+                    >
+                      <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={at.selected}
+                          onChange={() => toggleAreaType(at.id)}
+                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </td>
+                      <td className="px-4 py-3 text-sm">{at.name}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-slate-100">
+              <button
+                onClick={() => setStep(2)}
+                disabled={selectedAreaTypes.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 disabled:opacity-50"
+              >
+                Weiter zu Schritt 2 <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: KATEGORIEN & FREQUENZEN PRÜFEN */}
+        {step === 2 && (
+          <div className="space-y-5">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">2. Kategorien &amp; Frequenzen prüfen</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Umfang: <strong className="font-semibold text-slate-800">{visibleAreaTypesCount} Flächentypen aktiv</strong> · <strong className="font-semibold text-slate-800">{visibleCategoriesCount} Kategorien geladen</strong>
+                </p>
+              </div>
+            </div>
+
+            {/* FILTER-ZEILE INKLUSIVE CUSTOM MULTI-SELECT DROPDOWN & SEGMENTED CONTROL */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+              <div className="flex flex-wrap items-center gap-4">
+                
+                {/* CUSTOM MULTI-SELECT DROPDOWN */}
+                <div className="relative">
+                  <label className="block text-[11px] font-bold text-slate-500 mb-1">Kategorien-Filter</label>
+                  <button
+                    onClick={() => setIsCatDropdownOpen(!isCatDropdownOpen)}
+                    className="flex h-9 w-60 items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 outline-none hover:bg-slate-50"
+                  >
+                    <span className="truncate">
+                      {selectedCatFilter.length === 0
+                        ? 'Alle Kategorien'
+                        : `${selectedCatFilter.length} Kategorie(n) gewählt`}
+                    </span>
+                    <ChevronDown className="h-4 w-4 text-slate-400 shrink-0 ml-1" />
+                  </button>
+
+                  {isCatDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setIsCatDropdownOpen(false)} />
+                      <div className="absolute left-0 z-20 mt-1 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-1 px-1">
+                          <span className="text-[11px] font-bold text-slate-500">Mehrfachauswahl</span>
+                          {selectedCatFilter.length > 0 && (
+                            <button onClick={() => setSelectedCatFilter([])} className="text-[10px] font-bold text-blue-600 hover:underline">
+                              Zurücksetzen
+                            </button>
+                          )}
+                        </div>
+                        <div className="max-h-48 overflow-y-auto space-y-1">
+                          {availableCategoryNames.map(name => {
+                            const checked = selectedCatFilter.includes(name)
+                            return (
+                              <label key={name} className="flex items-center gap-2 px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 rounded cursor-pointer select-none">
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => {
+                                    if (checked) {
+                                      setSelectedCatFilter(selectedCatFilter.filter(x => x !== name))
+                                    } else {
+                                      setSelectedCatFilter([...selectedCatFilter, name])
+                                    }
+                                  }}
+                                  className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600"
+                                />
+                                <span className="truncate">{name}</span>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Status Filter */}
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-500 mb-1">Status</label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    className="h-9 rounded-lg border border-slate-300 bg-white px-2.5 text-xs font-semibold text-slate-700 outline-none"
+                  >
+                    <option value="all">Alle Status</option>
+                    <option value="aktiv">Aktiv</option>
+                    <option value="inaktiv">Inaktiv</option>
+                    <option value="nicht_moeglich">Nicht möglich</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* SEGMENTED CONTROL FÜR LEISTUNGSTYP ("Nur Reinigung" vs. "Alle") */}
+              <div>
+                <span className="text-[11px] font-bold text-slate-500 block mb-1">Leistungstypen</span>
+                <div className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setOnlyCleaningToggle(true)}
+                    className={cn("px-3 py-1 text-xs font-semibold rounded-md transition-colors", onlyCleaningToggle ? "bg-blue-600 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900")}
+                  >
+                    Nur Reinigung
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOnlyCleaningToggle(false)}
+                    className={cn("px-3 py-1 text-xs font-semibold rounded-md transition-colors", !onlyCleaningToggle ? "bg-slate-200 text-slate-800" : "text-slate-600 hover:text-slate-900")}
+                  >
+                    Alle
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* TABELLE MIT INTERAKTIVEM STATUS TOGGLE */}
+            <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-2xs max-h-[400px] overflow-y-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-slate-500 font-bold uppercase tracking-wider">
+                    <th className="w-10 px-3 py-2.5 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isAllVisibleChecked}
+                        ref={input => { if (input) input.indeterminate = isSomeVisibleChecked }}
+                        onChange={toggleAllVisibleCategories}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        title="Alle sichtbaren Kategorien auswählen"
+                      />
+                    </th>
+                    <th className="px-3 py-2.5 min-w-[200px]">Kategorie</th>
+                    <th className="px-3 py-2.5 min-w-[140px]">Leistungstyp</th>
+                    <th className="px-3 py-2.5 min-w-[200px]">Frequenz &amp; Wochentage</th>
+                    <th className="px-3 py-2.5 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredAreaTypesStep2.map((at) => (
+                    <Fragment key={at.id}>
+                      <tr className="bg-slate-100/70 border-b border-slate-200 font-bold text-slate-800">
+                        <td colSpan={5} className="px-3 py-2 text-xs">
+                          {at.name}
+                        </td>
+                      </tr>
+                      {at.categories.map((cat) => {
+                        const isChecked = checkedCategoryIds.includes(cat.id)
+
+                        return (
+                          <tr key={cat.id} className={cn("transition-colors", cat.status === 'nicht_moeglich' ? "bg-rose-50/40" : "hover:bg-slate-50")}>
+                            <td className="px-3 py-3 text-center align-top">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => toggleCheckedCategory(cat.id)}
+                                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                              />
+                            </td>
+                            <td className="px-3 py-3 align-top font-bold text-slate-900">
+                              {cat.name}
+                              {cat.status === 'nicht_moeglich' && cat.disabledReason && (
+                                <p className="mt-1 text-[11px] font-normal text-rose-700 leading-tight">
+                                  {cat.disabledReason}
+                                </p>
+                              )}
+                            </td>
+                            <td className="px-3 py-3 align-top">
+                              <div className="space-y-1">
+                                {cat.services.map(s => (
+                                  <span key={s.id} className="block rounded bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 w-fit">
+                                    {s.type}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 align-top">
+                              <div className="space-y-1">
+                                {cat.services.map(s => (
+                                  <div key={s.id} className="flex items-center gap-2">
+                                    <span className="font-mono text-slate-600 font-semibold">{s.frequency}</span>
+                                    <div className="flex gap-0.5">
+                                      {['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map(d => (
+                                        <span key={d} className={cn("rounded px-1.5 py-0.5 text-[10px] font-bold", s.days.includes(d) ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-400")}>
+                                          {d}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-3 py-3 align-top text-right">
+                              {cat.status === 'nicht_moeglich' ? (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-0.5 text-[11px] font-bold text-rose-800">
+                                  <AlertTriangle className="h-3 w-3" /> Nicht möglich
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => toggleSingleCategoryStatus(at.id, cat.id)}
+                                  className="inline-flex items-center gap-2 cursor-pointer focus:outline-none"
+                                >
+                                  <span className={cn("text-[11px] font-bold", cat.status === 'aktiv' ? "text-emerald-700" : "text-slate-400")}>
+                                    {cat.status === 'aktiv' ? 'Aktiv' : 'Inaktiv'}
+                                  </span>
+                                  <div className={cn("relative h-5 w-9 rounded-full transition-colors duration-200 ease-in-out p-0.5", cat.status === 'aktiv' ? "bg-emerald-500" : "bg-slate-300")}>
+                                    <div className={cn("h-4 w-4 rounded-full bg-white shadow-md transform transition-transform duration-200 ease-in-out", cat.status === 'aktiv' ? "translate-x-4" : "translate-x-0")} />
+                                  </div>
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex justify-between pt-3 border-t border-slate-100">
+              <button onClick={() => setStep(1)} className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                <ArrowLeft className="h-4 w-4" /> Zurück zu Schritt 1
+              </button>
+              <button onClick={() => setStep(3)} className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-semibold text-white shadow-xs hover:bg-blue-700">
+                Weiter zum Generieren <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: PLAN GENERIEREN & STAFFELN */}
+        {step === 3 && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">3. Ersten Plan generieren &amp; staffeln</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Prüfen Sie vor dem Generieren die Einstellungen zur Verteilung der Ausführungstermine.</p>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-5">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={staggerSchedule}
+                  onChange={(e) => setStaggerSchedule(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <div>
+                  <span className="text-sm font-bold text-slate-900">
+                    Leistungen vorher über den Monat verteilen
+                  </span>
+                  <p className="mt-1.5 text-xs text-slate-600 leading-relaxed">
+                    Verteilt die Flächen eines Stockwerks über verschiedene Wochentage und staffelt seltene Frequenzen über Wochen und Monate. Ohne diese Option startet die Planung von den Daten, welche die Leistungen heute schon tragen.
+                  </p>
+                </div>
+              </label>
+            </div>
+
+            <div className="flex justify-between pt-4 border-t border-slate-100">
+              <button onClick={() => setStep(2)} className="inline-flex items-center gap-1 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                <ArrowLeft className="h-4 w-4" /> Zurück zu Schritt 2
+              </button>
+              <button
+                onClick={() => onComplete(staggerSchedule)}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2.5 text-sm font-bold text-white shadow-md hover:bg-blue-700 transition-colors"
+              >
+                <Play className="h-4 w-4" /> Monatsplanung jetzt generieren
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// --- SOOBR BULK ACTION BAR AM UNTEREN BILDSCHIRMRAND ---
+function SoobrWizardBulkBar({
+  count,
+  onClear,
+  onApplyDays,
+  onActivateBulk,
+  onDeactivateBulk
+}: {
+  count: number
+  onClear: () => void
+  onApplyDays: (days: string[]) => void
+  onActivateBulk: () => void
+  onDeactivateBulk: () => void
+}) {
+  const [isDayDropdownOpen, setIsDayDropdownOpen] = useState(false)
+  const [selectedDays, setSelectedDays] = useState<string[]>(['Di', 'Do'])
+
+  if (count === 0) return null
+
+  const toggleDay = (key: string) => {
+    setSelectedDays(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])
+  }
+
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 transition-all animate-in slide-in-from-bottom-4">
+      <div className="pointer-events-auto flex w-full max-w-4xl flex-wrap items-center gap-3 rounded-xl bg-[#0A2540] px-4 py-3 shadow-2xl ring-1 ring-white/10 text-white">
+        <span className="rounded-full bg-amber-500 px-3 py-1 text-xs font-bold text-white shadow-xs">
+          {count} {count === 1 ? 'Kategorie' : 'Kategorien'} ausgewählt
+        </span>
+
         <button
-          onClick={onGenerate}
-          className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-blue-700 transition-colors"
+          onClick={onActivateBulk}
+          className="inline-flex items-center gap-1 rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500 transition-colors"
         >
-          <Play className="h-4 w-4" /> Monatsplanung generieren
+          <Check className="h-3.5 w-3.5" /> Kategorien aktivieren
+        </button>
+
+        <button
+          onClick={onDeactivateBulk}
+          className="inline-flex items-center gap-1 rounded-md bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-600 transition-colors"
+        >
+          <X className="h-3.5 w-3.5" /> Kategorien deaktivieren
+        </button>
+
+        <div className="h-4 w-px bg-white/20 my-auto" />
+
+        <div className="relative">
+          <button
+            onClick={() => setIsDayDropdownOpen(!isDayDropdownOpen)}
+            className="inline-flex items-center gap-2 rounded-md border border-white/30 bg-[#0A2540] px-3 py-1.5 text-xs font-semibold text-white hover:bg-white/10"
+          >
+            <span>Wochentage: {selectedDays.length === 0 ? 'Keine' : selectedDays.join(', ')}</span>
+            <ChevronDown className="h-3.5 w-3.5 text-slate-300" />
+          </button>
+
+          {isDayDropdownOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setIsDayDropdownOpen(false)} />
+              <div className="absolute left-0 bottom-full mb-2 z-20 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-2xl text-slate-800">
+                <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 border-b border-slate-100">
+                  Wochentage wählen
+                </div>
+                <div className="mt-1 space-y-1">
+                  {WEEKDAYS_MAP.map(d => (
+                    <label key={d.key} className="flex items-center gap-2 px-2 py-1 text-xs hover:bg-slate-100 rounded cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedDays.includes(d.key)}
+                        onChange={() => toggleDay(d.key)}
+                        className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600"
+                      />
+                      <span>{d.label} ({d.key})</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        <button
+          onClick={() => {
+            onApplyDays(selectedDays)
+            setIsDayDropdownOpen(false)
+          }}
+          disabled={selectedDays.length === 0}
+          className="rounded-md bg-blue-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-blue-500 disabled:opacity-40"
+        >
+          Anwenden
+        </button>
+
+        <button onClick={onClear} className="ml-auto inline-flex items-center gap-1 rounded-md border border-white/30 px-3 py-1.5 text-xs font-medium text-white hover:bg-white/10">
+          <X className="h-3.5 w-3.5" /> Abbrechen
         </button>
       </div>
     </div>
@@ -616,7 +1231,7 @@ function DeleteConfirmModal({ onClose, onConfirm }: { onClose: () => void; onCon
   )
 }
 
-// --- FILTER BAR ---
+// --- MAIN DASHBOARD FILTER BAR ---
 interface FilterBarProps {
   search: string
   onSearch: (v: string) => void
@@ -1227,13 +1842,16 @@ function CsvModal({ onClose }: { onClose: () => void }) {
 // --- MAIN APP ---
 export default function FacilityApp() {
   const [groups, setGroups] = useState<AreaGroup[]>(INITIAL_GROUPS)
+  const [wizardData, setWizardData] = useState<ConfigAreaType[]>(EXTENDED_WIZARD_DATA)
 
-  // Empty State Settings
-  const [staggerSchedule, setStaggerSchedule] = useState(true)
+  // Wizard Bulk Checkbox State
+  const [checkedWizardCatIds, setCheckedWizardCatIds] = useState<string[]>([])
 
-  // Modals State
+  // Modals
   const [replanWizardOpen, setReplanWizardOpen] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [shiftContext, setShiftContext] = useState<ShiftContext | null>(null)
+  const [csvOpen, setCsvOpen] = useState(false)
 
   // Filters State
   const [search, setSearch] = useState('')
@@ -1256,8 +1874,6 @@ export default function FacilityApp() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [expandedId, setExpandedId] = useState<string | null>('buero-1')
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([])
-  const [shiftContext, setShiftContext] = useState<ShiftContext | null>(null)
-  const [csvOpen, setCsvOpen] = useState(false)
   const [view, setView] = useState<'matrix' | 'date'>('matrix')
   const [toast, setToast] = useState<string | null>(null)
 
@@ -1268,9 +1884,9 @@ export default function FacilityApp() {
 
   const hasPlan = groups.length > 0 && groups.some((g) => g.areas.length > 0)
 
-  const handleGeneratePlan = () => {
+  const handleWizardComplete = (stagger: boolean) => {
     setGroups(INITIAL_GROUPS)
-    showToast('Monatsplanung erfolgreich generiert!')
+    showToast(`Monatsplanung erfolgreich generiert! ${stagger ? '(Gestaffelt)' : ''}`)
   }
 
   const handleDeletePlan = () => {
@@ -1314,12 +1930,8 @@ export default function FacilityApp() {
 
   const filteredGroups = useMemo(() => {
     const term = search.trim().toLowerCase()
-
     return groups.map((g) => {
-      if (flaechentyp !== 'all' && g.flaechentyp !== flaechentyp) {
-        return { ...g, areas: [] }
-      }
-
+      if (flaechentyp !== 'all' && g.flaechentyp !== flaechentyp) return { ...g, areas: [] }
       const filteredAreas = g.areas.filter((a) => {
         if (term && !a.name.toLowerCase().includes(term) && !a.flaechentyp.toLowerCase().includes(term)) return false
         if (gebaeude !== 'all' && a.gebaeude !== gebaeude) return false
@@ -1327,10 +1939,8 @@ export default function FacilityApp() {
         if (onlyManualMods && a.manualMods === 0 && !a.categories.some((c) => c.overridden)) return false
         if (frequenz !== 'all' && !a.frequencies.some((f) => f.label.includes(frequenz)) && !a.categories.some((c) => c.frequency === frequenz)) return false
         if (kategorie !== 'all' && !a.categories.some((c) => c.name.toLowerCase().includes(kategorie.toLowerCase()))) return false
-
         return true
       })
-
       return { ...g, areas: filteredAreas }
     }).filter((g) => g.areas.length > 0)
   }, [groups, search, gebaeude, stockwerk, flaechentyp, frequenz, kategorie, onlyManualMods])
@@ -1370,6 +1980,50 @@ export default function FacilityApp() {
     showToast('Termin angepasst — Manuelles Override gesetzt.')
   }
 
+  // BULK ACTIONS FÜR WIZARD
+  const handleApplyBulkDaysToWizard = (days: string[]) => {
+    setWizardData(prev => prev.map(at => ({
+      ...at,
+      categories: at.categories.map(c => {
+        if (!checkedWizardCatIds.includes(c.id)) return c
+        const updatedServices = c.services.map(s => ({ ...s, days }))
+        return {
+          ...c,
+          status: 'aktiv',
+          disabledReason: undefined,
+          selected: true,
+          services: updatedServices
+        }
+      })
+    })))
+    showToast(`${checkedWizardCatIds.length} Kategorie(n) auf [${days.join(', ')}] gesetzt.`)
+    setCheckedWizardCatIds([])
+  }
+
+  const handleActivateBulkCategories = () => {
+    setWizardData(prev => prev.map(at => ({
+      ...at,
+      categories: at.categories.map(c => {
+        if (!checkedWizardCatIds.includes(c.id) || c.status === 'nicht_moeglich') return c
+        return { ...c, status: 'aktiv', selected: true }
+      })
+    })))
+    showToast(`${checkedWizardCatIds.length} Kategorie(n) aktiviert.`)
+    setCheckedWizardCatIds([])
+  }
+
+  const handleDeactivateBulkCategories = () => {
+    setWizardData(prev => prev.map(at => ({
+      ...at,
+      categories: at.categories.map(c => {
+        if (!checkedWizardCatIds.includes(c.id) || c.status === 'nicht_moeglich') return c
+        return { ...c, status: 'inaktiv', selected: false }
+      })
+    })))
+    showToast(`${checkedWizardCatIds.length} Kategorie(n) deaktiviert.`)
+    setCheckedWizardCatIds([])
+  }
+
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-slate-50 font-sans text-slate-900">
       <TopHeader />
@@ -1379,9 +2033,7 @@ export default function FacilityApp() {
           
           {/* Action Toolbar */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-3">
-            <div className="flex items-center gap-3 text-sm">
-              <h2 className="text-lg font-bold tracking-tight text-slate-900">Monatsplanung</h2>
-            </div>
+            <h2 className="text-lg font-bold tracking-tight text-slate-900">Monatsplanung</h2>
             <div className="flex flex-wrap items-center gap-2">
               <button onClick={() => setCsvOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50">
                 <Upload className="h-3.5 w-3.5" /> CSV Upload
@@ -1391,28 +2043,31 @@ export default function FacilityApp() {
                   <button onClick={handleExportCsv} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50">
                     <Download className="h-3.5 w-3.5" /> CSV Export
                   </button>
-                  {/* LÖSCHEN BUTTON ZWISCHEN CSV EXPORT UND PLANUNG AKTUALISIEREN */}
                   <button onClick={() => setDeleteModalOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-2xs hover:bg-slate-50">
                     <Trash2 className="h-3.5 w-3.5 text-slate-500" /> Monatsplanung löschen
                   </button>
+                  <button onClick={() => setReplanWizardOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-blue-700">
+                    <Play className="h-3.5 w-3.5" /> Planung aktualisieren
+                  </button>
                 </>
-              )}
-
-              {!hasPlan ? (
-                <button onClick={handleGeneratePlan} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-blue-700">
-                  <Play className="h-3.5 w-3.5" /> Monatsplanung generieren
-                </button>
-              ) : (
-                <button onClick={() => setReplanWizardOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-blue-700">
-                  <Play className="h-3.5 w-3.5" /> Planung aktualisieren
-                </button>
               )}
             </div>
           </div>
 
-          {hasPlan ? (
+          {!hasPlan ? (
+            /* ERSTKONFIGURATION WIZARD ZUSTAND */
+            <div className="flex-1 overflow-y-auto p-4">
+              <FirstConfigWizard
+                onComplete={handleWizardComplete}
+                checkedCategoryIds={checkedWizardCatIds}
+                setCheckedCategoryIds={setCheckedWizardCatIds}
+                wizardData={wizardData}
+                setWizardData={setWizardData}
+              />
+            </div>
+          ) : (
+            /* HAUPT-DASHBOARD ZUSTAND (MATRIX / DATUMSANSICHT) */
             <>
-              {/* Filter Bar */}
               <FilterBar
                 search={search} onSearch={setSearch}
                 gebaeude={gebaeude} onGebaeude={setGebaeude}
@@ -1424,7 +2079,6 @@ export default function FacilityApp() {
                 onResetFilters={resetFilters}
               />
 
-              {/* View Switcher & Column Configurator Bar */}
               <div className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-2">
                 <span className="text-xs font-medium text-slate-500">
                   {filteredGroups.reduce((acc, g) => acc + g.areas.length, 0)} Flächen gefunden
@@ -1444,7 +2098,6 @@ export default function FacilityApp() {
                 </div>
               </div>
 
-              {/* Main Display Area */}
               <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
                 {filteredGroups.length === 0 ? (
                   <div className="flex flex-col items-center justify-center p-12 text-center border-2 border-dashed border-slate-200 rounded-xl bg-white">
@@ -1463,13 +2116,20 @@ export default function FacilityApp() {
                 <div className="h-24" aria-hidden />
               </div>
             </>
-          ) : (
-            <div className="flex-1 overflow-y-auto p-4">
-              <EmptyState onGenerate={handleGeneratePlan} staggerSchedule={staggerSchedule} setStaggerSchedule={setStaggerSchedule} />
-            </div>
           )}
         </main>
       </div>
+
+      {/* FLOATING BULK BARS */}
+      {!hasPlan && (
+        <SoobrWizardBulkBar
+          count={checkedWizardCatIds.length}
+          onClear={() => setCheckedWizardCatIds([])}
+          onApplyDays={handleApplyBulkDaysToWizard}
+          onActivateBulk={handleActivateBulkCategories}
+          onDeactivateBulk={handleDeactivateBulkCategories}
+        />
+      )}
 
       {hasPlan && <BulkActionBar count={selectedIds.length} onClear={() => setSelectedIds([])} />}
 
