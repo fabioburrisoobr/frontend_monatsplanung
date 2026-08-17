@@ -27,7 +27,7 @@ function formatDayLabel(dateStr: string): string {
 
 // --- TYPES ---
 export type PlanningStatus = 'auto' | 'planned' | 'override'
-export type MissedHandling = 'jump' | 'replan'
+export type MissedHandling = 'jump' | 'replan' | string
 
 export interface CategoryOccurrence {
   id: string
@@ -58,6 +58,8 @@ export interface Area {
   nextFixed: string
   categories: AreaCategory[]
   manualMods: number
+  planRestriction?: string
+  yearlyStartMonth?: string
 }
 
 export interface AreaGroup {
@@ -75,6 +77,9 @@ export interface VisibleColumns {
 const MISSED_HANDLING_LABEL: Record<string, string> = {
   jump: 'Auf nächstes Datum springen',
   replan: 'Neu planen',
+  'Standard der Wirtschaftseinheit verwenden': 'Standard der Wirtschaftseinheit',
+  'Überfällig behalten': 'Überfällig behalten',
+  'Zum nächsten geplanten Datum springen': 'Zum nächsten geplanten Datum springen'
 }
 
 // --- WIZARD SPECIFIC TYPES ---
@@ -99,6 +104,9 @@ export interface ConfigAreaType {
   id: string
   name: string
   selected: boolean
+  planRestriction: string
+  yearlyStartMonth: string
+  missedHandling: string
   categories: ConfigCategory[]
 }
 
@@ -112,12 +120,18 @@ const WEEKDAYS_MAP = [
   { key: 'So', label: 'Sonntag' },
 ]
 
-// --- MOCK WIZARD DATA (ALLE FLÄCHENTYPEN DEFAULT SELECTED: TRUE) ---
+const MONTHS = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember']
+
+// --- MOCK WIZARD DATA ---
+const createDefaultParams = () => ({
+  planRestriction: 'Pro Kalenderperiode begrenzen',
+  yearlyStartMonth: 'Januar',
+  missedHandling: 'Standard der Wirtschaftseinheit verwenden'
+})
+
 const EXTENDED_WIZARD_DATA: ConfigAreaType[] = [
   {
-    id: 'buero',
-    name: 'Büro & Einzelarbeitsplätze',
-    selected: true,
+    id: 'buero', name: 'Büro & Einzelarbeitsplätze', selected: true, ...createDefaultParams(),
     categories: [
       {
         id: 'b-ur', name: 'Unterhaltsreinigung', status: 'aktiv', selected: true,
@@ -140,7 +154,7 @@ const EXTENDED_WIZARD_DATA: ConfigAreaType[] = [
     ]
   },
   {
-    id: 'flur', name: 'Flur, Treppenhäuser & Passagierbereiche', selected: true,
+    id: 'flur', name: 'Flur, Treppenhäuser & Passagierbereiche', selected: true, ...createDefaultParams(),
     categories: [
       {
         id: 'f-glas', name: 'Glas- & Rahmenreinigung', status: 'aktiv', selected: true,
@@ -157,7 +171,7 @@ const EXTENDED_WIZARD_DATA: ConfigAreaType[] = [
     ]
   },
   {
-    id: 'sanitaer', name: 'Sanitärbereich & Waschanlagen', selected: true,
+    id: 'sanitaer', name: 'Sanitärbereich & Waschanlagen', selected: true, ...createDefaultParams(),
     categories: [
       {
         id: 's-entk', name: 'Grundentkalkung', status: 'aktiv', selected: true,
@@ -169,18 +183,18 @@ const EXTENDED_WIZARD_DATA: ConfigAreaType[] = [
       }
     ]
   },
-  { id: 'besprechung', name: 'Besprechungsräume & Konferenzzonen', selected: true, categories: [] },
-  { id: 'empfang', name: 'Empfangshalle & Foyer', selected: true, categories: [] },
-  { id: 'aufzuege', name: 'Aufzüge & Fahrstuhlschächte', selected: true, categories: [] },
-  { id: 'server', name: 'Serverräume & EDV-Zentralen', selected: true, categories: [] },
-  { id: 'kantine', name: 'Kantine, Mensa & Teeküchen', selected: true, categories: [] },
-  { id: 'tiefgarage', name: 'Tiefgarage & Parkdecks', selected: true, categories: [] },
-  { id: 'aussen', name: 'Außenbereich & Grünanlagen', selected: true, categories: [] },
-  { id: 'lager', name: 'Lager- & Logistikflächen', selected: true, categories: [] },
-  { id: 'labor', name: 'Labor- & Reinraumbereiche', selected: true, categories: [] },
-  { id: 'umkleiden', name: 'Umkleideräume & Duschen', selected: true, categories: [] },
-  { id: 'technik', name: 'Technikräume & Heizzentralen', selected: true, categories: [] },
-  { id: 'archiv', name: 'Archiv & Aktenlager', selected: true, categories: [] }
+  { id: 'besprechung', name: 'Besprechungsräume & Konferenzzonen', selected: true, ...createDefaultParams(), categories: [] },
+  { id: 'empfang', name: 'Empfangshalle & Foyer', selected: true, ...createDefaultParams(), categories: [] },
+  { id: 'aufzuege', name: 'Aufzüge & Fahrstuhlschächte', selected: true, ...createDefaultParams(), categories: [] },
+  { id: 'server', name: 'Serverräume & EDV-Zentralen', selected: true, ...createDefaultParams(), categories: [] },
+  { id: 'kantine', name: 'Kantine, Mensa & Teeküchen', selected: true, ...createDefaultParams(), categories: [] },
+  { id: 'tiefgarage', name: 'Tiefgarage & Parkdecks', selected: true, ...createDefaultParams(), categories: [] },
+  { id: 'aussen', name: 'Außenbereich & Grünanlagen', selected: true, ...createDefaultParams(), categories: [] },
+  { id: 'lager', name: 'Lager- & Logistikflächen', selected: true, ...createDefaultParams(), categories: [] },
+  { id: 'labor', name: 'Labor- & Reinraumbereiche', selected: true, ...createDefaultParams(), categories: [] },
+  { id: 'umkleiden', name: 'Umkleideräume & Duschen', selected: true, ...createDefaultParams(), categories: [] },
+  { id: 'technik', name: 'Technikräume & Heizzentralen', selected: true, ...createDefaultParams(), categories: [] },
+  { id: 'archiv', name: 'Archiv & Aktenlager', selected: true, ...createDefaultParams(), categories: [] }
 ]
 
 // --- MAIN DASHBOARD MOCK DATA ---
@@ -199,6 +213,8 @@ const INITIAL_GROUPS: AreaGroup[] = [
         missedHandling: 'jump',
         nextFixed: '01.06.2026',
         manualMods: 1,
+        planRestriction: 'Pro Kalenderperiode begrenzen',
+        yearlyStartMonth: 'Januar',
         categories: [
           {
             key: 'grund', name: 'Grundreinigung', frequency: '1xJ', date: '01.01.2026', status: 'planned', overridden: false,
@@ -270,61 +286,8 @@ const INITIAL_GROUPS: AreaGroup[] = [
           { key: 'boden', name: 'Bodenbeschichtung', frequency: '1xM', date: '10.06.2026', status: 'override', overridden: true, occurrences: [{ id: 'f1-b1', label: '1. Termin', date: '10.06.2026', overridden: true }] },
         ],
       },
-      {
-        id: 'flur-1og',
-        name: 'Flur 1. Obergeschoss',
-        gebaeude: 'Hauptgebäude A',
-        stockwerk: '1. OG',
-        flaechentyp: 'Flur & Erschliessung',
-        frequencies: [{ label: '@1xM', highest: true }],
-        firstExecutionDay: '01.01.2026',
-        missedHandling: 'replan',
-        nextFixed: '01.06.2026',
-        manualMods: 0,
-        categories: [
-          { key: 'glas', name: 'Glas- & Rahmenreinigung', frequency: '1xM', date: '01.06.2026', status: 'auto', overridden: false, occurrences: [{ id: 'f2-gl1', label: '1. Termin', date: '01.06.2026', overridden: false }] },
-          { key: 'unterhalt', name: 'Intensivreinigung', frequency: '4xJ', date: '01.08.2026', status: 'planned', overridden: false, occurrences: [{ id: 'f2-i1', label: '1. Termin', date: '01.08.2026', overridden: false }] },
-        ],
-      },
     ],
-  },
-  {
-    flaechentyp: 'Sanitärbereich',
-    areas: [
-      {
-        id: 'sanitaer-101',
-        name: 'Sanitär H-101 (Herren)',
-        gebaeude: 'Nebengebäude B',
-        stockwerk: 'EG',
-        flaechentyp: 'Sanitärbereich',
-        frequencies: [{ label: '@2xM', highest: true }],
-        firstExecutionDay: '01.01.2026',
-        missedHandling: 'jump',
-        nextFixed: '01.06.2026',
-        manualMods: 0,
-        categories: [
-          { key: 'entkalkung', name: 'Grundentkalkung', frequency: '2xM', date: '01.06.2026', status: 'auto', overridden: false, occurrences: [{ id: 's1-e1', label: '1. Termin', date: '01.06.2026', overridden: false }] },
-          { key: 'fliesen', name: 'Fliesen-Dampfreinigung', frequency: '1xM', date: '15.06.2026', status: 'planned', overridden: false, occurrences: [{ id: 's1-f1', label: '1. Termin', date: '15.06.2026', overridden: false }] },
-        ],
-      },
-      {
-        id: 'sanitaer-102',
-        name: 'Sanitär D-102 (Damen)',
-        gebaeude: 'Nebengebäude B',
-        stockwerk: 'EG',
-        flaechentyp: 'Sanitärbereich',
-        frequencies: [{ label: '@2xM', highest: true }],
-        firstExecutionDay: '01.01.2026',
-        missedHandling: 'jump',
-        nextFixed: '05.06.2026',
-        manualMods: 1,
-        categories: [
-          { key: 'entkalkung', name: 'Grundentkalkung', frequency: '2xM', date: '05.06.2026', status: 'override', overridden: true, occurrences: [{ id: 's2-e1', label: '1. Termin', date: '05.06.2026', overridden: true }] },
-          { key: 'fliesen', name: 'Fliesen-Dampfreinigung', frequency: '1xM', date: '15.06.2026', status: 'planned', overridden: false, occurrences: [{ id: 's2-f1', label: '1. Termin', date: '15.06.2026', overridden: false }] },
-        ],
-      },
-    ],
-  },
+  }
 ]
 
 // --- UI BADGES & PILLS ---
@@ -364,7 +327,7 @@ function MissedHandlingCell({ value, onChange }: { value: MissedHandling; onChan
         className="group inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 shadow-2xs hover:border-slate-300 hover:bg-slate-50 transition-colors"
       >
         {value === 'jump' ? <CornerDownRight className="h-3.5 w-3.5 text-slate-500" /> : <RefreshCw className="h-3.5 w-3.5 text-slate-500" />}
-        <span className="font-medium">{MISSED_HANDLING_LABEL[value]}</span>
+        <span className="font-medium">{MISSED_HANDLING_LABEL[value] || value}</span>
         <ChevronDown className="h-3.5 w-3.5 text-slate-400" />
       </button>
 
@@ -380,9 +343,6 @@ function MissedHandlingCell({ value, onChange }: { value: MissedHandling; onChan
                 <CornerDownRight className="h-3.5 w-3.5 text-blue-600" />
                 Auf nächstes Datum springen
               </div>
-              <span className="mt-1 text-[11px] font-normal text-slate-500 leading-snug">
-                Regelmässige Planung läuft weiter, verpasster Termin entfällt.
-              </span>
             </button>
 
             <button
@@ -393,9 +353,6 @@ function MissedHandlingCell({ value, onChange }: { value: MissedHandling; onChan
                 <RefreshCw className="h-3.5 w-3.5 text-blue-600" />
                 Neu planen
               </div>
-              <span className="mt-1 text-[11px] font-normal text-slate-500 leading-snug">
-                Termin bleibt als Aufgabe stehen, bis er nachgeholt wurde.
-              </span>
             </button>
           </div>
         </>
@@ -509,12 +466,16 @@ function FirstConfigWizard({
   onComplete,
   checkedCategoryIds,
   setCheckedCategoryIds,
+  checkedAreaTypeIds,
+  setCheckedAreaTypeIds,
   wizardData,
   setWizardData
 }: {
   onComplete: (stagger: boolean) => void
   checkedCategoryIds: string[]
   setCheckedCategoryIds: React.Dispatch<React.SetStateAction<string[]>>
+  checkedAreaTypeIds: string[]
+  setCheckedAreaTypeIds: React.Dispatch<React.SetStateAction<string[]>>
   wizardData: ConfigAreaType[]
   setWizardData: React.Dispatch<React.SetStateAction<ConfigAreaType[]>>
 }) {
@@ -527,7 +488,9 @@ function FirstConfigWizard({
   const [selectedCatFilter, setSelectedCatFilter] = useState<string[]>([])
   const [isCatDropdownOpen, setIsCatDropdownOpen] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'all' | 'aktiv' | 'inaktiv' | 'nicht_moeglich'>('all')
-  const [onlyCleaningToggle, setOnlyCleaningToggle] = useState(true)
+  const [step2AreaTypeSearch, setStep2AreaTypeSearch] = useState('')
+  const [step2AreaTypeFilter, setStep2AreaTypeFilter] = useState<string[]>([])
+  const [isAreaTypeDropdownOpen, setIsAreaTypeDropdownOpen] = useState(false)
 
   // Step 3 Flag
   const [staggerSchedule, setStaggerSchedule] = useState(true)
@@ -557,18 +520,29 @@ function FirstConfigWizard({
 
   const filteredAreaTypesStep2 = useMemo(() => {
     return selectedAreaTypes.map(at => {
-      const cats = at.categories.filter(c => {
+      const filteredCats = at.categories.map(c => ({
+        ...c,
+        services: c.services.filter(s => s.type === 'Reinigung')
+      })).filter(c => {
+        if (c.services.length === 0) return false
         if (selectedCatFilter.length > 0 && !selectedCatFilter.includes(c.name)) return false
         if (statusFilter !== 'all' && c.status !== statusFilter) return false
-        if (onlyCleaningToggle && !c.services.some(s => s.type === 'Reinigung')) return false
         return true
       })
-      return { ...at, categories: cats }
-    }).filter(at => at.categories.length > 0)
-  }, [selectedAreaTypes, selectedCatFilter, statusFilter, onlyCleaningToggle])
+      return { ...at, categories: filteredCats }
+    }).filter(at => {
+      if (at.categories.length === 0) return false
+      if (step2AreaTypeFilter.length > 0 && !step2AreaTypeFilter.includes(at.name)) return false
+      return true
+    })
+  }, [selectedAreaTypes, selectedCatFilter, statusFilter, step2AreaTypeFilter])
 
   const toggleCheckedCategory = (catId: string) => {
     setCheckedCategoryIds(prev => prev.includes(catId) ? prev.filter(x => x !== catId) : [...prev, catId])
+  }
+
+  const toggleCheckedWizardAreaType = (id: string) => {
+    setCheckedAreaTypeIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
   const toggleSingleCategoryStatus = (areaTypeId: string, catId: string) => {
@@ -588,7 +562,6 @@ function FirstConfigWizard({
     }))
   }
 
-  // --- NEW LOGIC FOR BULK CHECKBOX & DYNAMIC METADATA ---
   const visibleCategoryIds = useMemo(() => {
     return filteredAreaTypesStep2.flatMap(at => at.categories.map(c => c.id))
   }, [filteredAreaTypesStep2])
@@ -637,6 +610,17 @@ function FirstConfigWizard({
         {/* STEP 1: FLÄCHENTYPEN WÄHLEN */}
         {step === 1 && (
           <div className="space-y-5">
+            <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50/60 p-4 text-xs text-blue-900">
+              <div className="flex items-center gap-2 font-bold mb-1.5 text-sm">
+                <Info className="h-4 w-4" /> Hinweise zur Erstkonfiguration
+              </div>
+              <ul className="list-disc pl-5 space-y-1 text-blue-800 leading-relaxed">
+                <li>Wir empfehlen, eine neue Planungsversion anzulegen, bevor die Monatsplanung gestartet wird.</li>
+                <li>Voraussetzung: Alle Leistungen in einer Reinigungskategorie müssen die gleiche Tagesfixierung aufweisen. Es werden nur Leistungsarten vom Typ "Reinigung" berücksichtigt.</li>
+                <li>Achtung: Die Leistungen und Kategorien in den ausgewählten Flächentypen werden hiermit definitiv überschrieben.</li>
+              </ul>
+            </div>
+
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900">1. Erstkonfiguration &amp; Datenübernahme</h3>
@@ -708,15 +692,82 @@ function FirstConfigWizard({
               <div>
                 <h3 className="text-base font-bold text-slate-900">2. Kategorien &amp; Frequenzen prüfen</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Umfang: <strong className="font-semibold text-slate-800">{visibleAreaTypesCount} Flächentypen aktiv</strong> · <strong className="font-semibold text-slate-800">{visibleCategoriesCount} Kategorien geladen</strong>
+                  Umfang: <strong className="font-semibold text-slate-800">{visibleAreaTypesCount} Flächentypen aktiv</strong> · <strong className="font-semibold text-slate-800">{visibleCategoriesCount} Reinigungskategorien geladen</strong>
                 </p>
               </div>
             </div>
 
-            {/* FILTER-ZEILE INKLUSIVE CUSTOM MULTI-SELECT DROPDOWN & SEGMENTED CONTROL */}
+            {/* FILTER-ZEILE INKLUSIVE CUSTOM MULTI-SELECT DROPDOWN */}
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
-              <div className="flex flex-wrap items-center gap-4">
+              <div className="flex flex-wrap items-center gap-4 w-full">
                 
+                {/* Flächentyp Suche / Dropdown */}
+                <div className="flex-1 min-w-[200px] relative">
+                  <label className="block text-[11px] font-bold text-slate-500 mb-1">Flächentyp filtern</label>
+                  <button
+                    onClick={() => setIsAreaTypeDropdownOpen(!isAreaTypeDropdownOpen)}
+                    className="flex h-9 w-full items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 outline-none hover:bg-slate-50"
+                  >
+                    <span className="truncate">
+                      {step2AreaTypeFilter.length === 0 
+                        ? 'Alle Flächentypen' 
+                        : `${step2AreaTypeFilter.length} Flächentyp(en) gewählt`}
+                    </span>
+                    <ChevronDown className="h-4 w-4 text-slate-400 shrink-0 ml-1" />
+                  </button>
+
+                  {isAreaTypeDropdownOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setIsAreaTypeDropdownOpen(false)} />
+                      <div className="absolute left-0 z-20 mt-1 w-full rounded-xl border border-slate-200 bg-white p-2 shadow-xl">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-1 px-1">
+                          <span className="text-[11px] font-bold text-slate-500">Mehrfachauswahl</span>
+                          {step2AreaTypeFilter.length > 0 && (
+                            <button onClick={() => setStep2AreaTypeFilter([])} className="text-[10px] font-bold text-blue-600 hover:underline">
+                              Zurücksetzen
+                            </button>
+                          )}
+                        </div>
+                        <div className="relative mb-2">
+                          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="text"
+                            value={step2AreaTypeSearch}
+                            onChange={(e) => setStep2AreaTypeSearch(e.target.value)}
+                            placeholder="Suchen..."
+                            className="h-8 w-full rounded-md border border-slate-300 bg-slate-50 pl-8 pr-2 text-xs outline-none focus:border-blue-500 focus:bg-white"
+                          />
+                        </div>
+                        <div className="max-h-48 overflow-y-auto space-y-1">
+                          {selectedAreaTypes
+                            .map(at => at.name)
+                            .filter(name => name.toLowerCase().includes(step2AreaTypeSearch.toLowerCase()))
+                            .map(name => {
+                              const isChecked = step2AreaTypeFilter.includes(name);
+                              return (
+                                <label key={name} className="flex items-center gap-2 px-2 py-1.5 text-xs text-slate-700 hover:bg-slate-50 rounded cursor-pointer select-none">
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    onChange={() => {
+                                      if (isChecked) {
+                                        setStep2AreaTypeFilter(prev => prev.filter(n => n !== name));
+                                      } else {
+                                        setStep2AreaTypeFilter(prev => [...prev, name]);
+                                      }
+                                    }}
+                                    className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600"
+                                  />
+                                  <span className="truncate">{name}</span>
+                                </label>
+                              )
+                            })}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
                 {/* CUSTOM MULTI-SELECT DROPDOWN */}
                 <div className="relative">
                   <label className="block text-[11px] font-bold text-slate-500 mb-1">Kategorien-Filter</label>
@@ -786,27 +837,6 @@ function FirstConfigWizard({
                   </select>
                 </div>
               </div>
-
-              {/* SEGMENTED CONTROL FÜR LEISTUNGSTYP ("Nur Reinigung" vs. "Alle") */}
-              <div>
-                <span className="text-[11px] font-bold text-slate-500 block mb-1">Leistungstypen</span>
-                <div className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setOnlyCleaningToggle(true)}
-                    className={cn("px-3 py-1 text-xs font-semibold rounded-md transition-colors", onlyCleaningToggle ? "bg-blue-600 text-white shadow-2xs" : "text-slate-600 hover:text-slate-900")}
-                  >
-                    Nur Reinigung
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setOnlyCleaningToggle(false)}
-                    className={cn("px-3 py-1 text-xs font-semibold rounded-md transition-colors", !onlyCleaningToggle ? "bg-slate-200 text-slate-800" : "text-slate-600 hover:text-slate-900")}
-                  >
-                    Alle
-                  </button>
-                </div>
-              </div>
             </div>
 
             {/* TABELLE MIT INTERAKTIVEM STATUS TOGGLE */}
@@ -824,8 +854,7 @@ function FirstConfigWizard({
                         title="Alle sichtbaren Kategorien auswählen"
                       />
                     </th>
-                    <th className="px-3 py-2.5 min-w-[200px]">Kategorie</th>
-                    <th className="px-3 py-2.5 min-w-[140px]">Leistungstyp</th>
+                    <th className="px-3 py-2.5 min-w-[250px]">Kategorie</th>
                     <th className="px-3 py-2.5 min-w-[200px]">Frequenz &amp; Wochentage</th>
                     <th className="px-3 py-2.5 text-right">Status</th>
                   </tr>
@@ -834,7 +863,16 @@ function FirstConfigWizard({
                   {filteredAreaTypesStep2.map((at) => (
                     <Fragment key={at.id}>
                       <tr className="bg-slate-100/70 border-b border-slate-200 font-bold text-slate-800">
-                        <td colSpan={5} className="px-3 py-2 text-xs">
+                        <td className="px-3 py-3 text-center align-middle">
+                          <input 
+                            type="checkbox" 
+                            checked={checkedAreaTypeIds.includes(at.id)}
+                            onChange={() => toggleCheckedWizardAreaType(at.id)}
+                            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" 
+                            title="Flächentyp auswählen" 
+                          />
+                        </td>
+                        <td colSpan={3} className="px-3 py-3 align-middle text-sm">
                           {at.name}
                         </td>
                       </tr>
@@ -858,15 +896,6 @@ function FirstConfigWizard({
                                   {cat.disabledReason}
                                 </p>
                               )}
-                            </td>
-                            <td className="px-3 py-3 align-top">
-                              <div className="space-y-1">
-                                {cat.services.map(s => (
-                                  <span key={s.id} className="block rounded bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700 w-fit">
-                                    {s.type}
-                                  </span>
-                                ))}
-                              </div>
                             </td>
                             <td className="px-3 py-3 align-top">
                               <div className="space-y-1">
@@ -968,7 +997,7 @@ function FirstConfigWizard({
   )
 }
 
-// --- SOOBR BULK ACTION BAR AM UNTEREN BILDSCHIRMRAND ---
+// --- BULK ACTION BAR ---
 function SoobrWizardBulkBar({
   count,
   onClear,
@@ -1066,6 +1095,31 @@ function SoobrWizardBulkBar({
     </div>
   )
 }
+
+function WizardAreaTypeBulkBar({ count, onClear, onOpenParams }: { count: number, onClear: () => void, onOpenParams: () => void }) {
+  if (count === 0) return null
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 transition-all animate-in slide-in-from-bottom-4">
+      <div className="pointer-events-auto flex w-full max-w-4xl flex-wrap items-center gap-3 rounded-xl bg-[#0A2540] px-4 py-3 shadow-2xl ring-1 ring-white/10">
+        <span className="rounded-full bg-amber-500 px-3 py-1 text-sm font-bold text-white shadow-xs">
+          {count} {count === 1 ? 'Flächentyp' : 'Flächentypen'} ausgewählt
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <button onClick={onClear} className="inline-flex items-center gap-1 rounded-md border border-white/40 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors">
+            <X className="h-4 w-4" /> Abbrechen
+          </button>
+          <button
+            onClick={onOpenParams}
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors shadow-xs"
+          >
+            Planungsparameter anpassen
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 
 // --- RE-PLANNING WIZARD MODAL ---
 function ReplanWizardModal({ onClose, onConfirm }: { onClose: () => void; onConfirm: () => void }) {
@@ -1331,7 +1385,9 @@ function FilterBar({
   )
 }
 
-function BulkActionBar({ count, onClear }: { count: number; onClear: () => void }) {
+function BulkActionBar({ count, onClear, onOpenParams }: { count: number; onClear: () => void, onOpenParams: () => void }) {
+  const [action, setAction] = useState('')
+
   if (count === 0) return null
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 transition-all animate-in slide-in-from-bottom-4">
@@ -1339,8 +1395,9 @@ function BulkActionBar({ count, onClear }: { count: number; onClear: () => void 
         <span className="rounded-full bg-amber-500 px-3 py-1 text-sm font-bold text-white shadow-xs">
           {count} {count === 1 ? 'Fläche' : 'Flächen'} ausgewählt
         </span>
-        <select className="rounded-md border border-white/30 bg-[#0A2540] px-3 py-2 text-sm text-white outline-none focus:border-white/60 focus:ring-2 focus:ring-blue-500/50">
+        <select value={action} onChange={(e) => setAction(e.target.value)} className="rounded-md border border-white/30 bg-[#0A2540] px-3 py-2 text-sm text-white outline-none focus:border-white/60 focus:ring-2 focus:ring-blue-500/50">
           <option value="">Aktion wählen</option>
+          <option value="params">Planungsparameter anpassen</option>
           <option value="startdate">Startdatum anpassen</option>
           <option value="delete">Konfiguration löschen</option>
           <option value="reset">Auf Standard zurücksetzen</option>
@@ -1349,9 +1406,76 @@ function BulkActionBar({ count, onClear }: { count: number; onClear: () => void 
           <button onClick={onClear} className="inline-flex items-center gap-1 rounded-md border border-white/40 px-4 py-2 text-sm font-medium text-white hover:bg-white/10 transition-colors">
             <X className="h-4 w-4" /> Abbrechen
           </button>
-          <button className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors shadow-xs">
+          <button 
+            onClick={() => {
+              if (action === 'params') onOpenParams()
+            }}
+            disabled={!action} 
+            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors shadow-xs disabled:opacity-50"
+          >
             Anwenden
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BulkParamsModal({ onClose, onSave }: { onClose: () => void, onSave: (p: any) => void }) {
+  const [params, setParams] = useState({
+    planRestriction: 'Pro Kalenderperiode begrenzen',
+    yearlyStartMonth: 'Januar',
+    missedHandling: 'Standard der Wirtschaftseinheit verwenden'
+  })
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+          <h3 className="text-base font-bold text-slate-900">Planungsparameter anpassen</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X className="h-5 w-5" /></button>
+        </div>
+        <div className="my-5 space-y-4">
+          <label className="block text-sm font-medium text-slate-700">
+            <strong>Einschränkung der automatischen Planung</strong>
+            <select
+              value={params.planRestriction}
+              onChange={(e) => setParams({ ...params, planRestriction: e.target.value })}
+              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800 outline-none focus:border-blue-500"
+            >
+              <option value="Standard der Wirtschaftseinheit verwenden">Standard der Wirtschaftseinheit verwenden</option>
+              <option value="Keine Einschränkung">Keine Einschränkung</option>
+              <option value="Pro Kalenderperiode begrenzen">Pro Kalenderperiode begrenzen</option>
+              <option value="Gerade ISO-Wochen">Gerade ISO-Wochen</option>
+              <option value="Ungerade ISO-Wochen">Ungerade ISO-Wochen</option>
+            </select>
+          </label>
+          <label className="block text-sm font-medium text-slate-700">
+            <strong>Startmonat für Jahresfrequenzen</strong>
+            <select
+              value={params.yearlyStartMonth}
+              onChange={(e) => setParams({ ...params, yearlyStartMonth: e.target.value })}
+              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800 outline-none focus:border-blue-500"
+            >
+              {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </label>
+          <label className="block text-sm font-medium text-slate-700">
+            <strong>Verhalten bei verpasster Ausführung</strong>
+            <select
+              value={params.missedHandling}
+              onChange={(e) => setParams({ ...params, missedHandling: e.target.value })}
+              className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800 outline-none focus:border-blue-500"
+            >
+              <option value="Standard der Wirtschaftseinheit verwenden">Standard der Wirtschaftseinheit verwenden</option>
+              <option value="Überfällig behalten">Überfällig behalten</option>
+              <option value="Zum nächsten geplanten Datum springen">Zum nächsten geplanten Datum springen</option>
+            </select>
+          </label>
+        </div>
+        <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
+          <button onClick={onClose} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">Abbrechen</button>
+          <button onClick={() => onSave(params)} className="rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700">Einstellungen speichern</button>
         </div>
       </div>
     </div>
@@ -1846,12 +1970,15 @@ export default function FacilityApp() {
 
   // Wizard Bulk Checkbox State
   const [checkedWizardCatIds, setCheckedWizardCatIds] = useState<string[]>([])
+  const [checkedWizardAreaTypeIds, setCheckedWizardAreaTypeIds] = useState<string[]>([])
 
   // Modals
   const [replanWizardOpen, setReplanWizardOpen] = useState(false)
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [shiftContext, setShiftContext] = useState<ShiftContext | null>(null)
   const [csvOpen, setCsvOpen] = useState(false)
+  const [wizardParamsModalOpen, setWizardParamsModalOpen] = useState(false)
+  const [bulkParamsOpen, setBulkParamsOpen] = useState(false)
 
   // Filters State
   const [search, setSearch] = useState('')
@@ -1861,6 +1988,9 @@ export default function FacilityApp() {
   const [frequenz, setFrequenz] = useState('all')
   const [kategorie, setKategorie] = useState('all')
   const [onlyManualMods, setOnlyManualMods] = useState(false)
+
+  // Dirty State for Replanning Reminder
+  const [isDirty, setIsDirty] = useState(false)
 
   // Column Visibility State
   const [visibleColumns, setVisibleColumns] = useState<VisibleColumns>({
@@ -1886,17 +2016,20 @@ export default function FacilityApp() {
 
   const handleWizardComplete = (stagger: boolean) => {
     setGroups(INITIAL_GROUPS)
+    setIsDirty(false)
     showToast(`Monatsplanung erfolgreich generiert! ${stagger ? '(Gestaffelt)' : ''}`)
   }
 
   const handleDeletePlan = () => {
     setGroups([])
     setDeleteModalOpen(false)
+    setIsDirty(false)
     showToast('Monatsplanung vollständig gelöscht.')
   }
 
   const handleConfirmReplan = () => {
     setReplanWizardOpen(false)
+    setIsDirty(false)
     showToast('Monatsplanung neu berechnet und aktualisiert.')
   }
 
@@ -1921,7 +2054,44 @@ export default function FacilityApp() {
         areas: g.areas.map((a) => (a.id === areaId ? { ...a, missedHandling: val } : a)),
       }))
     )
-    showToast(`Verhalten bei Ausfall angepasst: ${MISSED_HANDLING_LABEL[val]}`)
+    setIsDirty(true)
+    showToast(`Verhalten bei Ausfall angepasst: ${MISSED_HANDLING_LABEL[val] || val}`)
+  }
+
+  // Dashboard Bulk-Modal
+  const handleSaveBulkParams = (params: any) => {
+    setGroups(prev => prev.map(g => ({
+      ...g,
+      areas: g.areas.map(a => {
+        if (!selectedIds.includes(a.id)) return a
+        return {
+          ...a,
+          planRestriction: params.planRestriction,
+          yearlyStartMonth: params.yearlyStartMonth,
+          missedHandling: params.missedHandling
+        }
+      })
+    })))
+    setBulkParamsOpen(false)
+    setSelectedIds([])
+    setIsDirty(true)
+    showToast('Planungsparameter für ausgewählte Flächen gespeichert.')
+  }
+
+  // Wizard Bulk-Modal
+  const handleSaveWizardBulkParams = (params: any) => {
+    setWizardData(prev => prev.map(at => {
+      if (!checkedWizardAreaTypeIds.includes(at.id)) return at
+      return {
+        ...at,
+        planRestriction: params.planRestriction,
+        yearlyStartMonth: params.yearlyStartMonth,
+        missedHandling: params.missedHandling
+      }
+    }))
+    setWizardParamsModalOpen(false)
+    setCheckedWizardAreaTypeIds([])
+    showToast('Planungsparameter für ausgewählte Flächentypen aktualisiert.')
   }
 
   const handleExportCsv = () => {
@@ -1977,10 +2147,11 @@ export default function FacilityApp() {
       }))
     )
     setShiftContext(null)
+    setIsDirty(true)
     showToast('Termin angepasst — Manuelles Override gesetzt.')
   }
 
-  // BULK ACTIONS FÜR WIZARD
+  // BULK ACTIONS FÜR WIZARD (CATEGORIES)
   const handleApplyBulkDaysToWizard = (days: string[]) => {
     setWizardData(prev => prev.map(at => ({
       ...at,
@@ -2027,6 +2198,15 @@ export default function FacilityApp() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-slate-50 font-sans text-slate-900">
       <TopHeader />
+
+      {/* DIRTY STATE HINT BANNER */}
+      {hasPlan && isDirty && (
+        <div className="flex items-center gap-2 bg-amber-100 px-6 py-2 border-b border-amber-200 text-xs font-semibold text-amber-800">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          Es gibt ungespeicherte Änderungen in der Monatsplanung. Bitte vergessen Sie nicht, die Planung zu aktualisieren, klicken Sie dafür auf "Planung aktualisieren".
+        </div>
+      )}
+
       <div className="flex min-h-0 flex-1">
         <Sidebar />
         <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -2061,6 +2241,8 @@ export default function FacilityApp() {
                 onComplete={handleWizardComplete}
                 checkedCategoryIds={checkedWizardCatIds}
                 setCheckedCategoryIds={setCheckedWizardCatIds}
+                checkedAreaTypeIds={checkedWizardAreaTypeIds}
+                setCheckedAreaTypeIds={setCheckedWizardAreaTypeIds}
                 wizardData={wizardData}
                 setWizardData={setWizardData}
               />
@@ -2121,7 +2303,13 @@ export default function FacilityApp() {
       </div>
 
       {/* FLOATING BULK BARS */}
-      {!hasPlan && (
+      {!hasPlan && checkedWizardAreaTypeIds.length > 0 ? (
+        <WizardAreaTypeBulkBar
+          count={checkedWizardAreaTypeIds.length}
+          onClear={() => setCheckedWizardAreaTypeIds([])}
+          onOpenParams={() => setWizardParamsModalOpen(true)}
+        />
+      ) : !hasPlan && checkedWizardCatIds.length > 0 ? (
         <SoobrWizardBulkBar
           count={checkedWizardCatIds.length}
           onClear={() => setCheckedWizardCatIds([])}
@@ -2129,15 +2317,19 @@ export default function FacilityApp() {
           onActivateBulk={handleActivateBulkCategories}
           onDeactivateBulk={handleDeactivateBulkCategories}
         />
-      )}
+      ) : null}
 
-      {hasPlan && <BulkActionBar count={selectedIds.length} onClear={() => setSelectedIds([])} />}
+      {hasPlan && <BulkActionBar count={selectedIds.length} onClear={() => setSelectedIds([])} onOpenParams={() => setBulkParamsOpen(true)} />}
 
       {/* MODALS */}
       {replanWizardOpen && <ReplanWizardModal onClose={() => setReplanWizardOpen(false)} onConfirm={handleConfirmReplan} />}
       {deleteModalOpen && <DeleteConfirmModal onClose={() => setDeleteModalOpen(false)} onConfirm={handleDeletePlan} />}
       {shiftContext && <ShiftModal context={shiftContext} onClose={() => setShiftContext(null)} onSave={saveShift} />}
       {csvOpen && <CsvModal onClose={() => setCsvOpen(false)} />}
+      
+      {/* PARAM MODALS */}
+      {bulkParamsOpen && <BulkParamsModal onClose={() => setBulkParamsOpen(false)} onSave={handleSaveBulkParams} />}
+      {wizardParamsModalOpen && <BulkParamsModal onClose={() => setWizardParamsModalOpen(false)} onSave={handleSaveWizardBulkParams} />}
 
       {toast && (
         <div className="fixed bottom-4 right-4 z-[60]">
